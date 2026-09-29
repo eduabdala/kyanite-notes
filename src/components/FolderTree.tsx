@@ -5,6 +5,7 @@ import { useVaultStore } from '../store/useVaultStore'
 import { useTabsStore } from '../store/useTabsStore'
 import { useCreationStore } from '../store/useCreationStore'
 import { useFolderTreeStore } from '../store/useFolderTreeStore'
+import { useConfirmStore } from '../store/useConfirmStore'
 import { InlineCreateInput } from './InlineCreateInput'
 import type { TreeNode } from '../lib/types'
 
@@ -60,6 +61,7 @@ function FolderNode({ node, depth }: { node: TreeNode; depth: number }) {
   const deleteFolder = useVaultStore((s) => s.deleteFolder)
   const moveNote = useVaultStore((s) => s.moveNote)
   const startCreation = useCreationStore((s) => s.start)
+  const confirm = useConfirmStore((s) => s.confirm)
 
   function handleNewNote(e: React.MouseEvent) {
     e.stopPropagation()
@@ -75,7 +77,7 @@ function FolderNode({ node, depth }: { node: TreeNode; depth: number }) {
 
   async function handleDelete(e: React.MouseEvent) {
     e.stopPropagation()
-    if (!window.confirm(t('sidebar.deleteFolderConfirm'))) return
+    if (!(await confirm(t('sidebar.deleteFolderConfirm')))) return
     await deleteFolder(node.path)
   }
 
@@ -139,12 +141,13 @@ function NoteNode({ node, depth }: { node: TreeNode; depth: number }) {
   const openTab = useTabsStore((s) => s.openTab)
   const deleteNote = useVaultStore((s) => s.deleteNote)
   const notes = useVaultStore((s) => s.notes)
+  const confirm = useConfirmStore((s) => s.confirm)
 
   const note = notes.find((n) => n.path === node.path)
 
   async function handleDelete(e: React.MouseEvent) {
     e.stopPropagation()
-    if (!window.confirm(t('sidebar.deleteNoteConfirm'))) return
+    if (!(await confirm(t('sidebar.deleteNoteConfirm')))) return
     await deleteNote(node.path)
   }
 

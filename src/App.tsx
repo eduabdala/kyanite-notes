@@ -8,6 +8,8 @@ import { Editor } from './components/Editor'
 import { Preview } from './components/Preview'
 import { BacklinksPanel } from './components/BacklinksPanel'
 import { ResizeHandle } from './components/ResizeHandle'
+import { ConfirmDialog } from './components/ConfirmDialog'
+import { PushDiffDialog } from './components/PushDiffDialog'
 import { useVaultStore } from './store/useVaultStore'
 import { useTabsStore } from './store/useTabsStore'
 
@@ -224,6 +226,8 @@ function App() {
           </div>
         )}
       </div>
+      <ConfirmDialog />
+      <PushDiffDialog />
     </div>
   )
 }

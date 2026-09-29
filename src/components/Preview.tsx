@@ -20,9 +20,16 @@ export function Preview({ content, onScroll, scrollToFraction }: PreviewProps) {
   const { mode } = splitPreset(preset)
   const containerRef = useRef<HTMLDivElement>(null)
   const suppressScrollRef = useRef(false)
+  const getAttachmentUrl = useVaultStore((s) => s.getAttachmentUrl)
+  // força um novo render quando um anexo termina de carregar (o cache vive fora do useMemo)
+  const attachmentCacheVersion = useVaultStore((s) => s.attachmentCache)
 
   const existingNames = useMemo(() => new Set(notes.map((n) => n.name)), [notes])
-  const html = useMemo(() => renderMarkdown(content, existingNames), [content, existingNames])
+  const html = useMemo(
+    () => renderMarkdown(content, existingNames, getAttachmentUrl),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- attachmentCacheVersion dispara recomputo quando o cache muda
+    [content, existingNames, getAttachmentUrl, attachmentCacheVersion]
+  )
 
   // renderiza os blocos ```mermaid``` como SVG após o HTML ser injetado no DOM
   // (import dinâmico: mermaid só é carregado quando a nota realmente tem um diagrama)

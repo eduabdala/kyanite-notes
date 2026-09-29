@@ -133,3 +133,15 @@
 .mermaid-block svg {
   max-width: 100%;
 }
+
+.attachment-loading {
+  display: inline-block;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-style: italic;
+  padding: 4px 0;
+}
+
+.attachment-loading::before {
+  content: '🖼️ ';
+}

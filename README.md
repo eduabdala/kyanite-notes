@@ -64,6 +64,21 @@ Ver [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) para detalhes sobre a estru
 - [ ] Sistema de plugins (API para extensões de terceiros, como no Obsidian)
 - [ ] Temas personalizados (além de claro/escuro, permitir criar/importar paletas de cores)
 - [ ] Login simplificado entre dispositivos (ver notas abaixo)
+- [ ] Busca fuzzy (tipo `Ctrl+P`) por nome/conteúdo das notas
+- [x] Tags (`#tag` inline e `tags:` no frontmatter) com painel de navegação na sidebar
+- [ ] Templates de notas
+- [ ] Command palette (`Ctrl+K`) para ações rápidas
+- [x] Diff visual entre versão local e remota antes do push
+- [ ] Exportar nota/vault para PDF ou HTML standalone
+- [x] Suporte a frontmatter YAML (metadados como tags, data, aliases), com `created` como padrão automático em notas novas
+- [ ] Modal de atalhos de teclado (`?`)
+- [ ] Testes automatizados (Vitest) para a lógica em `src/lib`
+- [x] Navegação por tags em árvore, estilo plugin Tag Folder do Obsidian
+- [ ] Visualização interativa de arquivos (grafo/canvas navegável)
+- [ ] Exportar nota/vault para EPUB, além de PDF
+- [x] Diálogos de confirmação com a identidade visual do app, no lugar dos alerts nativos do navegador
+- [x] Integração com multimídia: cole ou arraste imagens no editor (`![[nome]]`), com compressão automática (resize + WebP) antes do upload para o GitHub
+- [ ] Sincronização com banco de dados (alternativa/complemento ao GitHub como storage)
 
 ### Notas: login simplificado entre dispositivos
 

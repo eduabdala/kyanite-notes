@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { FolderPlus, FilePlus, X, PanelLeftClose, Settings } from 'lucide-react'
+import { FolderPlus, FilePlus, X, PanelLeftClose, Settings, Tag, Folder } from 'lucide-react'
 import { useVaultStore } from '../store/useVaultStore'
 import { useTabsStore } from '../store/useTabsStore'
 import { useCreationStore } from '../store/useCreationStore'
+import { useConfirmStore } from '../store/useConfirmStore'
 import { FolderTree } from './FolderTree'
+import { TagTree } from './TagTree'
 import { SettingsPanel } from './SettingsPanel'
 import { APP_VERSION } from '../lib/version'
 import './Sidebar.css'
@@ -20,14 +22,17 @@ export function Sidebar({ onCollapse }: SidebarProps) {
   const notes = useVaultStore((s) => s.notes)
   const deleteNote = useVaultStore((s) => s.deleteNote)
   const getFolderTree = useVaultStore((s) => s.getFolderTree)
+  const getTagTree = useVaultStore((s) => s.getTagTree)
   const emptyFolders = useVaultStore((s) => s.emptyFolders)
   const activePath = useTabsStore((s) => s.activePath)
   const openTab = useTabsStore((s) => s.openTab)
   const moveNote = useVaultStore((s) => s.moveNote)
   const creation = useCreationStore()
+  const confirm = useConfirmStore((s) => s.confirm)
   const [query, setQuery] = useState('')
   const [rootDragOver, setRootDragOver] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [panel, setPanel] = useState<'folders' | 'tags'>('folders')
 
   const filtered = useMemo(() => {
     if (!query.trim()) return null
@@ -37,11 +42,14 @@ export function Sidebar({ onCollapse }: SidebarProps) {
     )
   }, [notes, query])
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- recalcula quando notes/emptyFolders mudam
   const tree = useMemo(() => getFolderTree(), [getFolderTree, notes, emptyFolders])
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- recalcula quando notes muda
+  const tagTree = useMemo(() => getTagTree(), [getTagTree, notes])
 
   async function handleDelete(e: React.MouseEvent, path: string) {
     e.stopPropagation()
-    if (!window.confirm(t('sidebar.deleteNoteConfirm'))) return
+    if (!(await confirm(t('sidebar.deleteNoteConfirm')))) return
     await deleteNote(path)
   }
 
@@ -86,6 +94,22 @@ export function Sidebar({ onCollapse }: SidebarProps) {
         </button>
       </div>
 
+      {!filtered && (
+        <div className="sidebar-panel-toggle">
+          <button
+            className={panel === 'folders' ? 'active' : ''}
+            onClick={() => setPanel('folders')}
+          >
+            <Folder size={13} strokeWidth={1.75} />
+            {t('sidebar.folders')}
+          </button>
+          <button className={panel === 'tags' ? 'active' : ''} onClick={() => setPanel('tags')}>
+            <Tag size={13} strokeWidth={1.75} />
+            {t('sidebar.tags')}
+          </button>
+        </div>
+      )}
+
       {filtered ? (
         <ul className="note-list">
           {filtered.map((note) => (
@@ -109,7 +133,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
           ))}
           {filtered.length === 0 && <li className="note-empty">{t('sidebar.noNotesFound')}</li>}
         </ul>
-      ) : (
+      ) : panel === 'folders' ? (
         <div
           className={`tree-container ${rootDragOver ? 'drag-over' : ''}`}
           onDragOver={handleRootDragOver}
@@ -120,6 +144,11 @@ export function Sidebar({ onCollapse }: SidebarProps) {
           {tree.length === 0 && creation.parent === null && (
             <p className="note-empty">{t('sidebar.noNotesFound')}</p>
           )}
+        </div>
+      ) : (
+        <div className="tree-container">
+          <TagTree nodes={tagTree} />
+          {tagTree.length === 0 && <p className="note-empty">{t('sidebar.noTagsFound')}</p>}
         </div>
       )}
 

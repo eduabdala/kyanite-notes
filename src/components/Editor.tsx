@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
+import { ImagePlus } from 'lucide-react'
 import { EditorView, keymap, placeholder } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
@@ -6,6 +8,7 @@ import { markdown } from '@codemirror/lang-markdown'
 import { searchKeymap } from '@codemirror/search'
 import { closeBrackets, closeBracketsKeymap, completionKeymap } from '@codemirror/autocomplete'
 import { wikilinkAutocomplete } from '../lib/wikilinkAutocomplete'
+import { useVaultStore } from '../store/useVaultStore'
 import './Editor.css'
 
 interface EditorProps {
@@ -20,6 +23,23 @@ interface EditorProps {
   scrollToFraction?: number
 }
 
+/** Extrai arquivos de imagem de um evento de paste (DataTransferItemList) */
+function extractImageFilesFromItems(items: DataTransferItemList | null | undefined): File[] {
+  if (!items) return []
+  const files: File[] = []
+  for (const item of Array.from(items)) {
+    const file = item.getAsFile()
+    if (file && file.type.startsWith('image/')) files.push(file)
+  }
+  return files
+}
+
+/** Extrai arquivos de imagem de um evento de drop (FileList) */
+function extractImageFilesFromFileList(fileList: FileList | null | undefined): File[] {
+  if (!fileList) return []
+  return Array.from(fileList).filter((file) => file.type.startsWith('image/'))
+}
+
 export function Editor({
   path,
   content,
@@ -28,12 +48,18 @@ export function Editor({
   onScroll,
   scrollToFraction,
 }: EditorProps) {
+  const { t } = useTranslation()
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const onChangeRef = useRef(onChange)
   const onScrollRef = useRef(onScroll)
   const getNoteNamesRef = useRef(getNoteNames)
   const suppressScrollRef = useRef(false)
+  const uploadAttachment = useVaultStore((s) => s.uploadAttachment)
+  // guarda a função de upload atual em uma ref para poder chamá-la a partir do botão de anexo,
+  // que fica fora do useEffect (não é recriado quando o arquivo ativo muda)
+  const handleImageFileRef = useRef<(file: File, position: number) => Promise<void>>(null!)
   onChangeRef.current = onChange
   onScrollRef.current = onScroll
   getNoteNamesRef.current = getNoteNames
@@ -98,6 +124,51 @@ export function Editor({
     const view = new EditorView({ state, parent: containerRef.current })
     viewRef.current = view
 
+    /** Insere um placeholder no cursor, sobe a imagem, e substitui pelo `![[nome]]` final
+     * (ou remove o placeholder se o upload falhar). */
+    async function handleImageFile(file: File, position: number) {
+      const placeholderText = `![[Enviando ${file.name}...]]`
+      view.dispatch({
+        changes: { from: position, to: position, insert: placeholderText },
+        selection: { anchor: position + placeholderText.length },
+      })
+
+      const result = await uploadAttachment(file)
+      const currentDoc = view.state.doc.toString()
+      const placeholderStart = currentDoc.indexOf(placeholderText)
+      if (placeholderStart === -1) return // usuário já editou/desfez o placeholder
+
+      const replacement = result.ok ? `![[${result.fileName}]]` : `<!-- ${result.error} -->`
+      view.dispatch({
+        changes: {
+          from: placeholderStart,
+          to: placeholderStart + placeholderText.length,
+          insert: replacement,
+        },
+      })
+    }
+    handleImageFileRef.current = handleImageFile
+
+    function handlePaste(e: ClipboardEvent) {
+      const files = extractImageFilesFromItems(e.clipboardData?.items)
+      if (files.length === 0) return
+      e.preventDefault()
+      const position = view.state.selection.main.from
+      files.forEach((file, i) => handleImageFile(file, position + i))
+    }
+
+    function handleDrop(e: DragEvent) {
+      const files = extractImageFilesFromFileList(e.dataTransfer?.files)
+      if (files.length === 0) return
+      e.preventDefault()
+      const dropPos = view.posAtCoords({ x: e.clientX, y: e.clientY }) ?? view.state.selection.main.from
+      files.forEach((file, i) => handleImageFile(file, dropPos + i))
+    }
+
+    view.dom.addEventListener('paste', handlePaste)
+    view.dom.addEventListener('drop', handleDrop)
+    view.dom.addEventListener('dragover', (e) => e.preventDefault())
+
     const scroller = view.scrollDOM
     const handleScroll = () => {
       if (suppressScrollRef.current) {
@@ -112,6 +183,8 @@ export function Editor({
 
     return () => {
       scroller.removeEventListener('scroll', handleScroll)
+      view.dom.removeEventListener('paste', handlePaste)
+      view.dom.removeEventListener('drop', handleDrop)
       view.destroy()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -127,5 +200,38 @@ export function Editor({
     scroller.scrollTop = scrollToFraction * max
   }, [scrollToFraction])
 
-  return <div className="editor-container" ref={containerRef} />
+  // no celular não há paste de imagem nem drag-and-drop de arquivo do sistema, então o botão
+  // de anexo (input file com accept="image/*") é o caminho principal: no iOS/Android o browser
+  // já oferece a escolha entre câmera e galeria nativamente
+  function handleFileInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? [])
+    const view = viewRef.current
+    if (files.length > 0 && view) {
+      const position = view.state.selection.main.from
+      files.forEach((file, i) => handleImageFileRef.current(file, position + i))
+    }
+    e.target.value = '' // permite selecionar o mesmo arquivo de novo depois
+  }
+
+  return (
+    <div className="editor-container">
+      <div className="editor-cm-mount" ref={containerRef} />
+      <button
+        type="button"
+        className="editor-attach-btn"
+        title={t('editor.attachImage')}
+        onClick={() => fileInputRef.current?.click()}
+      >
+        <ImagePlus size={18} strokeWidth={1.75} />
+      </button>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="editor-attach-input"
+        onChange={handleFileInputChange}
+      />
+    </div>
+  )
 }

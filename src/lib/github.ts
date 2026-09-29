@@ -142,6 +142,40 @@ export class GitHubClient {
     return data.content!.sha!
   }
 
+  /** Cria ou atualiza um arquivo binário (imagens e outros anexos), sem passar pelo encoding UTF-8. */
+  async putBinaryFile(path: string, blob: Blob, sha?: string): Promise<string> {
+    const base64 = await blobToBase64(blob)
+    const { data } = await this.octokit.repos.createOrUpdateFileContents({
+      owner: this.config.owner,
+      repo: this.config.repo,
+      path,
+      message: sha ? `Update ${path}` : `Create ${path}`,
+      content: base64,
+      sha,
+      branch: this.config.branch,
+    })
+    return data.content!.sha!
+  }
+
+  /** Lê um arquivo binário (imagem/anexo) e retorna como data URL, para uso direto em `<img src>`.
+   * Usa a Contents API autenticada em vez de raw.githubusercontent.com, o que funciona também
+   * para repositórios privados (a URL raw pública não tem acesso ao token do usuário). */
+  async getBinaryFileAsDataUrl(path: string): Promise<string> {
+    const { data } = await this.octokit.repos.getContent({
+      owner: this.config.owner,
+      repo: this.config.repo,
+      path,
+      ref: this.config.branch,
+    })
+
+    if (Array.isArray(data) || data.type !== 'file' || !data.content) {
+      throw new Error(`"${path}" não é um arquivo válido`)
+    }
+
+    const mime = guessMimeType(path)
+    return `data:${mime};base64,${data.content.replace(/\n/g, '')}`
+  }
+
   async deleteFile(path: string, sha: string): Promise<void> {
     await this.octokit.repos.deleteFile({
       owner: this.config.owner,
@@ -166,4 +200,33 @@ function decodeBase64Utf8(base64: string): string {
   const bytes = new Uint8Array(binary.length)
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
   return new TextDecoder().decode(bytes)
+}
+
+const MIME_BY_EXTENSION: Record<string, string> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  svg: 'image/svg+xml',
+  avif: 'image/avif',
+  bmp: 'image/bmp',
+}
+
+function guessMimeType(path: string): string {
+  const ext = path.split('.').pop()?.toLowerCase() ?? ''
+  return MIME_BY_EXTENSION[ext] ?? 'application/octet-stream'
+}
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      // FileReader.readAsDataURL retorna "data:<mime>;base64,<dados>" — descarta o prefixo
+      const result = reader.result as string
+      resolve(result.slice(result.indexOf(',') + 1))
+    }
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(blob)
+  })
 }

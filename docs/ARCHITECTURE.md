@@ -103,6 +103,23 @@ Scroll sincronizado no modo split: o editor e o preview reportam sua posição d
 
 Links para notas inexistentes recebem a classe `wikilink-missing` (cor de destaque diferente), igual ao comportamento do Obsidian para links quebrados.
 
+## Multimídia
+
+Imagens são coladas (`Ctrl+V`) ou arrastadas direto no editor. O fluxo, em `src/components/Editor.tsx`:
+
+1. Um placeholder (`![[Enviando nome...]]`) é inserido no cursor imediatamente, para feedback visual
+2. `src/lib/imageCompress.ts` redimensiona a imagem (máximo 1920px no lado maior) e reencoda como WebP via Canvas API (`canvas.toBlob`), sem dependências externas — isso costuma reduzir 60-90% do tamanho de fotos vindas de celular/câmera. Só usa a versão comprimida se ela for de fato menor que o arquivo original; SVG e GIF são enviados sem reencode (vetor e animação, respectivamente, não se beneficiam do processo)
+3. O blob final é enviado via `GitHubClient.putBinaryFile` para a pasta `_attachments/` do repo (`src/lib/attachments.ts`), com um nome único (`nome-original-<timestamp36>.webp`)
+4. O placeholder é substituído por `![[nome-do-arquivo]]` — mesma sintaxe de embed do Obsidian, reaproveitando o parser de wikilinks já existente (com o prefixo `!`)
+
+No preview (`src/lib/markdown.ts`), `![[arquivo]]` é resolvido para uma `<img>`. A URL usada é uma **data URL**, obtida via `GitHubClient.getBinaryFileAsDataUrl` (Contents API autenticada) em vez de `raw.githubusercontent.com` — isso é necessário porque a URL raw pública não tem acesso ao token do usuário, o que quebraria a visualização em repositórios privados. O resultado é cacheado em memória (`useVaultStore.attachmentCache`) para não refazer o download a cada re-render do preview.
+
+### Limitações conhecidas
+
+- Anexos não têm estado `dirty`/offline: diferente das notas (que sempre salvam no `localStorage` primeiro), o upload de um anexo depende de estar conectado ao GitHub. Isso evita estourar o limite de ~5-10MB do `localStorage` guardando imagens em base64 localmente.
+- A API REST do GitHub tem um limite de ~100MB por arquivo (e não é ideal para arquivos grandes de qualquer forma); não há validação de tamanho máximo no upload hoje.
+- Sem deduplicação: colar a mesma imagem duas vezes cria dois arquivos distintos em `_attachments/` (nomes únicos por timestamp).
+
 ## Segurança
 
 - O Personal Access Token do GitHub é armazenado em `localStorage`, nunca transmitido a nenhum servidor além da API oficial do GitHub (`api.github.com`).
