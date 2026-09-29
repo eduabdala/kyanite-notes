@@ -38,8 +38,10 @@ export const en = {
       noNotesFound: 'No notes found',
       collapse: 'Collapse sidebar',
       expand: 'Expand sidebar',
+      openMenu: 'Open menu',
     },
     backlinks: {
+      title: 'Links and backlinks',
       links: 'Links ({{count}})',
       backlinks: 'Backlinks ({{count}})',
       noLinks: 'No links in this note',

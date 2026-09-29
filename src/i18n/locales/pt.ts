@@ -39,8 +39,10 @@ export const pt = {
       noNotesFound: 'Nenhuma nota encontrada',
       collapse: 'Recolher barra lateral',
       expand: 'Expandir barra lateral',
+      openMenu: 'Abrir menu',
     },
     backlinks: {
+      title: 'Links e backlinks',
       links: 'Links ({{count}})',
       backlinks: 'Backlinks ({{count}})',
       noLinks: 'Nenhum link nesta nota',

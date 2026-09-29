@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { PanelLeftOpen } from 'lucide-react'
+import { Link2, PanelLeftOpen, X } from 'lucide-react'
 import { TopBar } from './components/TopBar'
 import { Sidebar } from './components/Sidebar'
 import { TabBar } from './components/TabBar'
@@ -42,6 +42,8 @@ function App() {
   )
   const [sidebarWidth, setSidebarWidth] = useState(() => loadWidth(SIDEBAR_WIDTH_KEY, 260))
   const [backlinksWidth, setBacklinksWidth] = useState(() => loadWidth(BACKLINKS_WIDTH_KEY, 240))
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const [mobileBacklinksOpen, setMobileBacklinksOpen] = useState(false)
 
   function toggleSidebar(collapsed: boolean) {
     localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(collapsed))
@@ -101,9 +103,14 @@ function App() {
 
   const activeNote = notes.find((n) => n.path === activePath)
 
+  // no mobile, trocar de nota fecha o drawer da sidebar para revelar o editor
+  useEffect(() => {
+    setMobileSidebarOpen(false)
+  }, [activePath])
+
   return (
     <div className="app-layout">
-      <TopBar />
+      <TopBar onOpenSidebar={() => setMobileSidebarOpen(true)} />
       <div className="app-body">
         {sidebarCollapsed ? (
           <button
@@ -115,12 +122,21 @@ function App() {
           </button>
         ) : (
           <>
-            <div style={{ width: sidebarWidth, flexShrink: 0 }}>
+            <div className="sidebar-desktop" style={{ width: sidebarWidth, flexShrink: 0 }}>
               <Sidebar onCollapse={() => toggleSidebar(true)} />
             </div>
             <ResizeHandle onResize={handleSidebarResize} />
           </>
         )}
+
+        {mobileSidebarOpen && (
+          <div className="mobile-drawer-overlay" onClick={() => setMobileSidebarOpen(false)}>
+            <div className="mobile-drawer" onClick={(e) => e.stopPropagation()}>
+              <Sidebar onCollapse={() => setMobileSidebarOpen(false)} />
+            </div>
+          </div>
+        )}
+
         <main className="editor-area">
           <TabBar />
           {activeNote ? (
@@ -184,10 +200,28 @@ function App() {
         {activeNote && (
           <>
             <ResizeHandle onResize={handleBacklinksResize} />
-            <div style={{ width: backlinksWidth, flexShrink: 0 }}>
+            <div className="backlinks-desktop" style={{ width: backlinksWidth, flexShrink: 0 }}>
               <BacklinksPanel />
             </div>
+            <button
+              className="mobile-backlinks-btn"
+              onClick={() => setMobileBacklinksOpen(true)}
+              title={t('backlinks.title')}
+            >
+              <Link2 size={18} strokeWidth={1.75} />
+            </button>
           </>
+        )}
+
+        {mobileBacklinksOpen && (
+          <div className="mobile-drawer-overlay" onClick={() => setMobileBacklinksOpen(false)}>
+            <div className="mobile-drawer mobile-drawer-right" onClick={(e) => e.stopPropagation()}>
+              <button className="mobile-drawer-close" onClick={() => setMobileBacklinksOpen(false)}>
+                <X size={18} strokeWidth={1.75} />
+              </button>
+              <BacklinksPanel />
+            </div>
+          </div>
         )}
       </div>
     </div>

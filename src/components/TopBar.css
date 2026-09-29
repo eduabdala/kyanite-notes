@@ -9,10 +9,32 @@
   border-bottom: 1px solid var(--border-color);
 }
 
+.top-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
 .app-title {
   font-weight: 600;
   color: var(--text-primary);
   font-size: 14px;
+  white-space: nowrap;
+}
+
+.mobile-menu-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  cursor: pointer;
 }
 
 .sync-area {
@@ -74,4 +96,33 @@
 
 .theme-select:hover {
   background: var(--bg-hover);
+}
+
+@media (max-width: 768px) {
+  .top-bar {
+    padding: 0 10px;
+    gap: 8px;
+  }
+
+  .mobile-menu-btn {
+    display: flex;
+  }
+
+  .sync-area {
+    gap: 6px;
+  }
+
+  .theme-select {
+    display: none;
+  }
+
+  .sync-status,
+  .sync-error {
+    display: none;
+  }
+
+  .btn-topbar {
+    padding: 5px 8px;
+    font-size: 11px;
+  }
 }

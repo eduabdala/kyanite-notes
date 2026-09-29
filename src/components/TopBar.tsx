@@ -1,11 +1,16 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Menu } from 'lucide-react'
 import { useVaultStore } from '../store/useVaultStore'
 import { useThemeStore } from '../store/useThemeStore'
 import { GitHubConnectModal } from './GitHubConnectModal'
 import './TopBar.css'
 
-export function TopBar() {
+interface TopBarProps {
+  onOpenSidebar: () => void
+}
+
+export function TopBar({ onOpenSidebar }: TopBarProps) {
   const { t, i18n } = useTranslation()
   const githubConfig = useVaultStore((s) => s.githubConfig)
   const syncStatus = useVaultStore((s) => s.syncStatus)
@@ -22,7 +27,12 @@ export function TopBar() {
 
   return (
     <header className="top-bar">
-      <span className="app-title">{t('app.title')}</span>
+      <div className="top-bar-left">
+        <button className="mobile-menu-btn" onClick={onOpenSidebar} title={t('sidebar.openMenu')}>
+          <Menu size={18} strokeWidth={1.75} />
+        </button>
+        <span className="app-title">{t('app.title')}</span>
+      </div>
 
       <div className="sync-area">
         <select

@@ -153,6 +153,22 @@
   opacity: 1;
 }
 
+/* em telas touch não existe :hover, então as ações ficam sempre visíveis */
+@media (max-width: 768px) {
+  .tree-row-actions {
+    opacity: 1;
+  }
+
+  .tree-row {
+    padding: 10px 8px;
+  }
+
+  .icon-btn {
+    width: 34px;
+    height: 34px;
+  }
+}
+
 .tree-note-row.active {
   background: var(--accent);
   color: white;
