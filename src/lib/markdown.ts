@@ -2,6 +2,8 @@ import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 
 const WIKILINK_RE = /\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]/g
+const MERMAID_BLOCK_RE = /```mermaid\n([\s\S]*?)```/g
+export const MERMAID_PLACEHOLDER_CLASS = 'mermaid-block'
 
 marked.setOptions({ breaks: true, gfm: true })
 
@@ -13,7 +15,13 @@ marked.setOptions({ breaks: true, gfm: true })
 export function renderMarkdown(content: string, existingNames: Set<string>): string {
   const placeholders: string[] = []
 
-  const withPlaceholders = content.replace(WIKILINK_RE, (_match, name: string, alias?: string) => {
+  // extrai blocos ```mermaid``` antes do marked processar, para renderizá-los depois via JS
+  const withMermaidPlaceholders = content.replace(MERMAID_BLOCK_RE, (_match, code: string) => {
+    const encoded = encodeURIComponent(code.trim())
+    return `<div class="${MERMAID_PLACEHOLDER_CLASS}" data-mermaid-code="${encoded}"></div>\n`
+  })
+
+  const withPlaceholders = withMermaidPlaceholders.replace(WIKILINK_RE, (_match, name: string, alias?: string) => {
     const trimmed = name.trim()
     const label = alias?.trim() || trimmed
     const exists = existingNames.has(trimmed)
@@ -27,7 +35,7 @@ export function renderMarkdown(content: string, existingNames: Set<string>): str
 
   const finalHtml = rawHtml.replace(/\u0000(\d+)\u0000/g, (_match, idx: string) => placeholders[Number(idx)])
 
-  return DOMPurify.sanitize(finalHtml, { ADD_ATTR: ['data-note-name', 'target'] })
+  return DOMPurify.sanitize(finalHtml, { ADD_ATTR: ['data-note-name', 'data-mermaid-code', 'target'] })
 }
 
 function escapeHtml(str: string): string {

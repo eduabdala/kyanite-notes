@@ -109,3 +109,27 @@
 .preview-content input[type='checkbox'] {
   margin-right: 6px;
 }
+
+.mermaid-block {
+  display: flex;
+  justify-content: center;
+  margin: 1em 0;
+  overflow-x: auto;
+}
+
+.mermaid-block:not(.mermaid-block-rendered):not(.mermaid-block-error)::before {
+  content: 'Renderizando diagrama...';
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.mermaid-block.mermaid-block-error {
+  color: var(--danger);
+  font-size: 13px;
+  font-family: var(--font-mono);
+  white-space: pre-wrap;
+}
+
+.mermaid-block svg {
+  max-width: 100%;
+}

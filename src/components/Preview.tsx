@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { renderMarkdown } from '../lib/markdown'
+import { MERMAID_PLACEHOLDER_CLASS, renderMarkdown } from '../lib/markdown'
+import { useThemeStore } from '../store/useThemeStore'
 import { useVaultStore } from '../store/useVaultStore'
 import { useTabsStore } from '../store/useTabsStore'
 import './Preview.css'
+
+let mermaidIdCounter = 0
 
 interface PreviewProps {
   content: string
@@ -13,11 +16,61 @@ interface PreviewProps {
 export function Preview({ content, onScroll, scrollToFraction }: PreviewProps) {
   const notes = useVaultStore((s) => s.notes)
   const openTab = useTabsStore((s) => s.openTab)
+  const theme = useThemeStore((s) => s.theme)
   const containerRef = useRef<HTMLDivElement>(null)
   const suppressScrollRef = useRef(false)
 
   const existingNames = useMemo(() => new Set(notes.map((n) => n.name)), [notes])
   const html = useMemo(() => renderMarkdown(content, existingNames), [content, existingNames])
+
+  // renderiza os blocos ```mermaid``` como SVG após o HTML ser injetado no DOM
+  // (import dinâmico: mermaid só é carregado quando a nota realmente tem um diagrama)
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    const blocks = container.querySelectorAll<HTMLElement>(`.${MERMAID_PLACEHOLDER_CLASS}`)
+    if (blocks.length === 0) return
+
+    let cancelled = false
+
+    import('mermaid').then(({ default: mermaid }) => {
+      if (cancelled) return
+
+      const resolvedTheme =
+        theme === 'system'
+          ? window.matchMedia('(prefers-color-scheme: light)').matches
+            ? 'light'
+            : 'dark'
+          : theme
+      mermaid.initialize({
+        startOnLoad: false,
+        securityLevel: 'strict',
+        theme: resolvedTheme === 'dark' ? 'dark' : 'default',
+      })
+
+      blocks.forEach(async (block) => {
+        const code = block.dataset.mermaidCode ? decodeURIComponent(block.dataset.mermaidCode) : ''
+        if (!code) return
+        const id = `mermaid-${mermaidIdCounter++}`
+        try {
+          const { svg } = await mermaid.render(id, code)
+          if (cancelled) return
+          block.innerHTML = svg
+          block.classList.add('mermaid-block-rendered')
+        } catch (err) {
+          if (cancelled) return
+          const message = err instanceof Error ? err.message : 'Erro ao renderizar diagrama'
+          block.textContent = message
+          block.classList.add('mermaid-block-error')
+        }
+      })
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [html, theme])
 
   function handleClick(e: React.MouseEvent<HTMLDivElement>) {
     const target = e.target as HTMLElement

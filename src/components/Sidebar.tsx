@@ -33,7 +33,8 @@ export function Sidebar({ onCollapse }: SidebarProps) {
     )
   }, [notes, query])
 
-  const tree = useMemo(() => getFolderTree(), [getFolderTree, notes])
+  const emptyFolders = useVaultStore((s) => s.emptyFolders)
+  const tree = useMemo(() => getFolderTree(), [getFolderTree, notes, emptyFolders])
 
   async function handleDelete(e: React.MouseEvent, path: string) {
     e.stopPropagation()

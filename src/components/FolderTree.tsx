@@ -4,6 +4,7 @@ import { ChevronRight, FilePlus, FolderPlus, X } from 'lucide-react'
 import { useVaultStore } from '../store/useVaultStore'
 import { useTabsStore } from '../store/useTabsStore'
 import { useCreationStore } from '../store/useCreationStore'
+import { useFolderTreeStore } from '../store/useFolderTreeStore'
 import { InlineCreateInput } from './InlineCreateInput'
 import type { TreeNode } from '../lib/types'
 
@@ -53,7 +54,8 @@ export function FolderTree({ nodes, depth = 0, parentPath = '' }: FolderTreeProp
 
 function FolderNode({ node, depth }: { node: TreeNode; depth: number }) {
   const { t } = useTranslation()
-  const [expanded, setExpanded] = useState(true)
+  const expanded = useFolderTreeStore((s) => s.isExpanded(node.path))
+  const toggleExpanded = useFolderTreeStore((s) => s.toggle)
   const [dragOver, setDragOver] = useState(false)
   const deleteFolder = useVaultStore((s) => s.deleteFolder)
   const moveNote = useVaultStore((s) => s.moveNote)
@@ -61,13 +63,13 @@ function FolderNode({ node, depth }: { node: TreeNode; depth: number }) {
 
   function handleNewNote(e: React.MouseEvent) {
     e.stopPropagation()
-    setExpanded(true)
+    if (!expanded) toggleExpanded(node.path)
     startCreation('note', node.path)
   }
 
   function handleNewSubfolder(e: React.MouseEvent) {
     e.stopPropagation()
-    setExpanded(true)
+    if (!expanded) toggleExpanded(node.path)
     startCreation('folder', node.path)
   }
 
@@ -101,7 +103,7 @@ function FolderNode({ node, depth }: { node: TreeNode; depth: number }) {
       <div
         className={`tree-row tree-folder-row ${dragOver ? 'drag-over' : ''}`}
         style={{ paddingLeft: `${depth * 14 + 8}px` }}
-        onClick={() => setExpanded((v) => !v)}
+        onClick={() => toggleExpanded(node.path)}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
