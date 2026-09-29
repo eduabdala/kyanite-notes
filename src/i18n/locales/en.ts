@@ -80,6 +80,10 @@ export const en = {
       cancel: 'Cancel',
       connect: 'Connect',
       connecting: 'Connecting...',
+      oauthHint: 'Sign in with your GitHub account and choose the repository to sync your notes.',
+      loginWithGitHub: 'Log in with GitHub',
+      useTokenInstead: 'Use a Personal Access Token instead',
+      backToLogin: 'Back to login',
       errors: {
         missingFields: 'Fill in owner, repository and token.',
         generic: 'Could not connect. Check the details.',

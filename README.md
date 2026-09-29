@@ -63,6 +63,18 @@ Ver [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) para detalhes sobre a estru
 - [ ] Canvas (quadro visual livre para organizar notas, texto e conexões espacialmente)
 - [ ] Sistema de plugins (API para extensões de terceiros, como no Obsidian)
 - [ ] Temas personalizados (além de claro/escuro, permitir criar/importar paletas de cores)
+- [ ] Login simplificado entre dispositivos (ver notas abaixo)
+
+### Notas: login simplificado entre dispositivos
+
+Hoje conectar ao GitHub exige gerar um Personal Access Token manualmente e colar owner/repo/branch/token em cada dispositivo. Investigação sobre alternativas mais simples, mantendo a arquitetura descentralizada (sem backend próprio guardando dados do usuário):
+
+- **OAuth Device Flow do GitHub**: mostraria um código curto pro usuário autorizar em outro dispositivo (`github.com/login/device`), sem copiar/colar token manualmente. Porém o endpoint `github.com/login/oauth/access_token` **não tem CORS habilitado** — é uma restrição de segurança do próprio GitHub, documentada inclusive pelo Octokit (`@octokit/auth-oauth-device` "does not work in browsers due to CORS constraints"). Não existe forma de completar esse fluxo 100% client-side.
+- Isso vale para **qualquer OAuth flow do GitHub** (Device Flow ou Web Flow), com OAuth App ou GitHub App: a troca de código por token sempre exige uma chamada server-side.
+- Alternativa que mantém zero-backend: **transferência de config via QR code / código de pareamento** — exportar a config atual (token + owner + repo + branch) como um código que pode ser escaneado/colado em outro dispositivo, evitando digitar tudo de novo manualmente. Não é OAuth, só transporte da config local entre dispositivos.
+- Alternativa com OAuth real: um micro-proxy serverless (ex: Vercel Function ou Cloudflare Worker) que só repassa a troca de código→token pro GitHub, sem guardar nada. Resolve a UX (usuário nunca vê/copia um PAT) mas deixa de ser 100% descentralizado, já que essa etapa pontual passa pela sua infra.
+
+Referências: [octokit/auth-oauth-user.js](https://github.com/octokit/auth-oauth-user.js/), [stackoverflow: cors issue on github oauth](https://stackoverflow.com/questions/42150075/cors-issue-on-github-oauth/42150336).
 
 ## Stack
 

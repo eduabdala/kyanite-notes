@@ -1,0 +1,9 @@
+name = "kyanite-oauth-worker"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+# Defina com: wrangler secret put GITHUB_CLIENT_SECRET
+# GITHUB_CLIENT_ID pode ficar aqui como var normal (não é secreto)
+[vars]
+GITHUB_CLIENT_ID = "Ov23lifDPzpXErI2tSyt"
+ALLOWED_ORIGINS = "http://localhost:5173,https://kyanite-notes.vercel.app"
