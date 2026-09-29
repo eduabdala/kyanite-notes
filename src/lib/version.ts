@@ -1,2 +1,2 @@
 /** Versão exibida no rodapé da sidebar. Atualizar manualmente a cada release. */
-export const APP_VERSION = '0.2.0'
+export const APP_VERSION = '0.3.0'

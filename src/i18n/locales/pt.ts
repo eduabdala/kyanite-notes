@@ -9,6 +9,9 @@ export const pt = {
       split: 'Split',
       preview: 'Preview',
     },
+    editor: {
+      attachImage: 'Adicionar imagem',
+    },
     topBar: {
       theme: 'Tema',
       themeDark: 'Escuro',
@@ -49,9 +52,22 @@ export const pt = {
       notSynced: 'Não sincronizado',
       delete: 'Excluir',
       noNotesFound: 'Nenhuma nota encontrada',
+      noTagsFound: 'Nenhuma tag encontrada',
+      folders: 'Pastas',
+      tags: 'Tags',
       collapse: 'Recolher barra lateral',
       expand: 'Expandir barra lateral',
       openMenu: 'Abrir menu',
+    },
+    confirm: {
+      cancel: 'Cancelar',
+      confirm: 'Excluir',
+    },
+    pushDiff: {
+      title: 'Mudanças remotas detectadas',
+      hint: 'O arquivo "{{path}}" foi alterado no GitHub desde o último sync. Revise as diferenças antes de sobrescrever a versão remota.',
+      cancel: 'Cancelar',
+      overwrite: 'Sobrescrever remoto',
     },
     backlinks: {
       title: 'Links e backlinks',

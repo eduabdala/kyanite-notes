@@ -94,6 +94,20 @@
   color: var(--text-primary);
 }
 
+.btn-danger {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  background: var(--danger);
+  color: white;
+  border: 1px solid var(--danger);
+}
+
+.btn-danger:hover {
+  opacity: 0.9;
+}
+
 .modal-content select {
   background: var(--bg-primary);
   border: 1px solid var(--border-color);

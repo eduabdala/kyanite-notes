@@ -9,6 +9,9 @@ export const en = {
       split: 'Split',
       preview: 'Preview',
     },
+    editor: {
+      attachImage: 'Add image',
+    },
     topBar: {
       theme: 'Theme',
       themeDark: 'Dark',
@@ -48,9 +51,22 @@ export const en = {
       notSynced: 'Not synced',
       delete: 'Delete',
       noNotesFound: 'No notes found',
+      noTagsFound: 'No tags found',
+      folders: 'Folders',
+      tags: 'Tags',
       collapse: 'Collapse sidebar',
       expand: 'Expand sidebar',
       openMenu: 'Open menu',
+    },
+    confirm: {
+      cancel: 'Cancel',
+      confirm: 'Delete',
+    },
+    pushDiff: {
+      title: 'Remote changes detected',
+      hint: 'The file "{{path}}" was changed on GitHub since your last sync. Review the differences before overwriting the remote version.',
+      cancel: 'Cancel',
+      overwrite: 'Overwrite remote',
     },
     backlinks: {
       title: 'Links and backlinks',

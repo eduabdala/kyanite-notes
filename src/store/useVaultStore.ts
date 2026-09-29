@@ -12,6 +12,12 @@ import {
   FOLDER_MARKER,
 } from '../lib/vault'
 import { buildLinkGraph } from '../lib/wikilinks'
+import { withCreatedDate } from '../lib/frontmatter'
+import { buildTagTree } from '../lib/tags'
+import { diffLines, isDiffEmpty } from '../lib/diff'
+import { compressImage } from '../lib/imageCompress'
+import { buildAttachmentFileName, attachmentPath } from '../lib/attachments'
+import { usePushConfirmStore } from './usePushConfirmStore'
 import { useTabsStore } from './useTabsStore'
 import type { GitHubConfig, LinkGraph, Note, TreeNode } from '../lib/types'
 
@@ -41,10 +47,42 @@ interface VaultState {
   deleteFolder: (path: string) => Promise<void>
   moveNote: (path: string, targetFolder: string) => Promise<void>
   getFolderTree: () => TreeNode[]
+  getTagTree: () => TreeNode[]
+
+  /** Comprime (se for imagem) e envia um arquivo para a pasta de anexos no GitHub.
+   * Retorna o nome do arquivo salvo (para inserir como `![[nome]]` na nota), ou null em caso de erro. */
+  uploadAttachment: (file: File) => Promise<{ ok: true; fileName: string } | { ok: false; error: string }>
+
+  /** Cache em memória de anexos já baixados (nome do arquivo -> data URL) */
+  attachmentCache: Map<string, string>
+  /** Retorna a data URL do anexo se já estiver em cache; caso contrário, dispara o download
+   * em background (via Contents API autenticada) e atualiza o cache quando terminar. */
+  getAttachmentUrl: (fileName: string) => string | null
 }
 
 function recomputeGraph(notes: Note[]): LinkGraph {
   return buildLinkGraph(notes)
+}
+
+/** Antes de sobrescrever uma nota existente no GitHub, verifica se o remoto mudou desde o
+ * último sync local (sha diferente do conhecido). Se mudou, mostra o diff e espera confirmação
+ * do usuário. Retorna false se o push deve ser cancelado. */
+async function confirmPushIfRemoteChanged(client: GitHubClient, note: Note): Promise<boolean> {
+  if (!note.sha) return true // nota nova, ainda não existe no remoto
+
+  try {
+    const remote = await client.getFileContent(note.path)
+    if (remote.sha === note.sha) return true // remoto não mudou desde o último sync
+
+    const lines = diffLines(remote.content, note.content)
+    if (isDiffEmpty(lines)) return true // conteúdo idêntico, mesmo com sha diferente
+
+    return await usePushConfirmStore.getState().confirmOverwrite(note.path, lines)
+  } catch {
+    // arquivo pode ter sido deletado no remoto, ou outro erro de leitura: deixa o putFile
+    // original tratar o erro (ex: recriar o arquivo)
+    return true
+  }
 }
 
 export const useVaultStore = create<VaultState>((set, get) => ({
@@ -132,11 +170,14 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     const note = notes.find((n) => n.path === path)
     if (!note) return
 
+    const client = new GitHubClient(githubConfig)
+    const shouldPush = await confirmPushIfRemoteChanged(client, note)
+    if (!shouldPush) return
+
     set({ syncStatus: 'syncing', syncError: null })
     try {
-      const client = new GitHubClient(githubConfig)
       const sha = await client.putFile(note.path, note.content, note.sha)
-      const updated = notes.map((n) =>
+      const updated = get().notes.map((n) =>
         n.path === path ? { ...n, sha, dirty: false } : n
       )
       saveLocalNotes(updated)
@@ -152,10 +193,18 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     if (!githubConfig) return
     const dirtyNotes = notes.filter((n) => n.dirty)
 
+    const client = new GitHubClient(githubConfig)
+
+    // verifica conflitos antes de começar a sincronizar, para o usuário decidir cada
+    // um sem misturar com o estado "syncing" (e sem enviar parte das notas e travar no meio)
+    for (const note of dirtyNotes) {
+      const shouldPush = await confirmPushIfRemoteChanged(client, note)
+      if (!shouldPush) return
+    }
+
     set({ syncStatus: 'syncing', syncError: null })
     try {
-      const client = new GitHubClient(githubConfig)
-      let current = notes
+      let current = get().notes
       for (const note of dirtyNotes) {
         const sha = await client.putFile(note.path, note.content, note.sha)
         current = current.map((n) => (n.path === note.path ? { ...n, sha, dirty: false } : n))
@@ -183,7 +232,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     const note: Note = {
       path,
       name,
-      content: `# ${name}\n\n`,
+      content: withCreatedDate(`# ${name}\n\n`),
       updatedAt: Date.now(),
       dirty: true,
     }
@@ -356,4 +405,82 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     const { notes, emptyFolders } = get()
     return buildFolderTree(notes, emptyFolders)
   },
+
+  getTagTree: () => {
+    return buildTagTree(get().notes)
+  },
+
+  uploadAttachment: async (file) => {
+    const { githubConfig } = get()
+    if (!githubConfig) {
+      return { ok: false, error: 'Conecte o GitHub para enviar anexos' }
+    }
+
+    try {
+      const { blob, extension } = await compressImage(file)
+      const fileName = buildAttachmentFileName(file.name, extension)
+      const client = new GitHubClient(githubConfig)
+      await client.putBinaryFile(attachmentPath(fileName), blob)
+
+      // já guarda no cache local a partir do próprio blob enviado, evitando um round-trip
+      // de download imediatamente após o upload
+      const dataUrl = await blobToDataUrl(blob)
+      set((state) => {
+        const next = new Map(state.attachmentCache)
+        next.set(fileName, dataUrl)
+        return { attachmentCache: next }
+      })
+
+      return { ok: true, fileName }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao enviar anexo'
+      return { ok: false, error: message }
+    }
+  },
+
+  attachmentCache: new Map(),
+
+  getAttachmentUrl: (fileName) => {
+    const { attachmentCache, githubConfig } = get()
+    const cached = attachmentCache.get(fileName)
+    if (cached !== undefined) return cached
+    if (!githubConfig) return null
+
+    // marca como "carregando" (string vazia) para não disparar múltiplos fetches em paralelo
+    // enquanto o preview re-renderiza a cada tecla digitada
+    set((state) => {
+      const next = new Map(state.attachmentCache)
+      next.set(fileName, '')
+      return { attachmentCache: next }
+    })
+
+    const client = new GitHubClient(githubConfig)
+    client
+      .getBinaryFileAsDataUrl(attachmentPath(fileName))
+      .then((dataUrl) => {
+        set((state) => {
+          const next = new Map(state.attachmentCache)
+          next.set(fileName, dataUrl)
+          return { attachmentCache: next }
+        })
+      })
+      .catch(() => {
+        set((state) => {
+          const next = new Map(state.attachmentCache)
+          next.delete(fileName)
+          return { attachmentCache: next }
+        })
+      })
+
+    return null
+  },
 }))
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(blob)
+  })
+}
