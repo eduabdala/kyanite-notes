@@ -254,3 +254,38 @@
   font-size: 13px;
   outline: none;
 }
+
+.sidebar-footer {
+  flex-shrink: 0;
+  padding: 6px 8px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.settings-trigger:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.version-tag {
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0.7;
+  flex-shrink: 0;
+  padding-right: 4px;
+}

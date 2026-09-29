@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { MERMAID_PLACEHOLDER_CLASS, renderMarkdown } from '../lib/markdown'
-import { useThemeStore } from '../store/useThemeStore'
+import { splitPreset, useThemeStore } from '../store/useThemeStore'
 import { useVaultStore } from '../store/useVaultStore'
 import { useTabsStore } from '../store/useTabsStore'
 import './Preview.css'
@@ -16,7 +16,8 @@ interface PreviewProps {
 export function Preview({ content, onScroll, scrollToFraction }: PreviewProps) {
   const notes = useVaultStore((s) => s.notes)
   const openTab = useTabsStore((s) => s.openTab)
-  const theme = useThemeStore((s) => s.theme)
+  const preset = useThemeStore((s) => s.preset)
+  const { mode } = splitPreset(preset)
   const containerRef = useRef<HTMLDivElement>(null)
   const suppressScrollRef = useRef(false)
 
@@ -37,16 +38,10 @@ export function Preview({ content, onScroll, scrollToFraction }: PreviewProps) {
     import('mermaid').then(({ default: mermaid }) => {
       if (cancelled) return
 
-      const resolvedTheme =
-        theme === 'system'
-          ? window.matchMedia('(prefers-color-scheme: light)').matches
-            ? 'light'
-            : 'dark'
-          : theme
       mermaid.initialize({
         startOnLoad: false,
         securityLevel: 'strict',
-        theme: resolvedTheme === 'dark' ? 'dark' : 'default',
+        theme: mode === 'dark' ? 'dark' : 'default',
       })
 
       blocks.forEach(async (block) => {
@@ -70,7 +65,7 @@ export function Preview({ content, onScroll, scrollToFraction }: PreviewProps) {
     return () => {
       cancelled = true
     }
-  }, [html, theme])
+  }, [html, mode])
 
   function handleClick(e: React.MouseEvent<HTMLDivElement>) {
     const target = e.target as HTMLElement

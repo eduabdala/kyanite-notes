@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Menu } from 'lucide-react'
 import { useVaultStore } from '../store/useVaultStore'
-import { useThemeStore } from '../store/useThemeStore'
+import { AppLogo } from './AppLogo'
 import { GitHubConnectModal } from './GitHubConnectModal'
 import './TopBar.css'
 
@@ -11,7 +11,7 @@ interface TopBarProps {
 }
 
 export function TopBar({ onOpenSidebar }: TopBarProps) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const githubConfig = useVaultStore((s) => s.githubConfig)
   const syncStatus = useVaultStore((s) => s.syncStatus)
   const syncError = useVaultStore((s) => s.syncError)
@@ -19,8 +19,6 @@ export function TopBar({ onOpenSidebar }: TopBarProps) {
   const syncAll = useVaultStore((s) => s.syncAll)
   const pullFromGitHub = useVaultStore((s) => s.pullFromGitHub)
   const disconnectGitHub = useVaultStore((s) => s.disconnectGitHub)
-  const theme = useThemeStore((s) => s.theme)
-  const setTheme = useThemeStore((s) => s.setTheme)
   const [showModal, setShowModal] = useState(false)
 
   const dirtyCount = notes.filter((n) => n.dirty).length
@@ -31,31 +29,11 @@ export function TopBar({ onOpenSidebar }: TopBarProps) {
         <button className="mobile-menu-btn" onClick={onOpenSidebar} title={t('sidebar.openMenu')}>
           <Menu size={18} strokeWidth={1.75} />
         </button>
+        <AppLogo size={20} />
         <span className="app-title">{t('app.title')}</span>
       </div>
 
       <div className="sync-area">
-        <select
-          className="theme-select"
-          value={i18n.language}
-          onChange={(e) => i18n.changeLanguage(e.target.value)}
-          title={t('topBar.language')}
-        >
-          <option value="pt">Português</option>
-          <option value="en">English</option>
-        </select>
-
-        <select
-          className="theme-select"
-          value={theme}
-          onChange={(e) => setTheme(e.target.value as 'dark' | 'light' | 'system')}
-          title={t('topBar.theme')}
-        >
-          <option value="dark">{t('topBar.themeDark')}</option>
-          <option value="light">{t('topBar.themeLight')}</option>
-          <option value="system">{t('topBar.themeSystem')}</option>
-        </select>
-
         {syncStatus === 'error' && (
           <span className="sync-error" title={syncError ?? ''}>
             {t('topBar.syncError')}

@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { FolderPlus, FilePlus, X, PanelLeftClose } from 'lucide-react'
+import { FolderPlus, FilePlus, X, PanelLeftClose, Settings } from 'lucide-react'
 import { useVaultStore } from '../store/useVaultStore'
 import { useTabsStore } from '../store/useTabsStore'
 import { useCreationStore } from '../store/useCreationStore'
 import { FolderTree } from './FolderTree'
+import { SettingsPanel } from './SettingsPanel'
+import { APP_VERSION } from '../lib/version'
 import './Sidebar.css'
 
 const DRAG_MIME = 'application/x-kyanite-note-path'
@@ -18,12 +20,14 @@ export function Sidebar({ onCollapse }: SidebarProps) {
   const notes = useVaultStore((s) => s.notes)
   const deleteNote = useVaultStore((s) => s.deleteNote)
   const getFolderTree = useVaultStore((s) => s.getFolderTree)
+  const emptyFolders = useVaultStore((s) => s.emptyFolders)
   const activePath = useTabsStore((s) => s.activePath)
   const openTab = useTabsStore((s) => s.openTab)
   const moveNote = useVaultStore((s) => s.moveNote)
   const creation = useCreationStore()
   const [query, setQuery] = useState('')
   const [rootDragOver, setRootDragOver] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
 
   const filtered = useMemo(() => {
     if (!query.trim()) return null
@@ -33,7 +37,6 @@ export function Sidebar({ onCollapse }: SidebarProps) {
     )
   }, [notes, query])
 
-  const emptyFolders = useVaultStore((s) => s.emptyFolders)
   const tree = useMemo(() => getFolderTree(), [getFolderTree, notes, emptyFolders])
 
   async function handleDelete(e: React.MouseEvent, path: string) {
@@ -119,6 +122,20 @@ export function Sidebar({ onCollapse }: SidebarProps) {
           )}
         </div>
       )}
+
+      <div className="sidebar-footer">
+        <button
+          className="settings-trigger"
+          onClick={() => setShowSettings(true)}
+          title={t('settings.title')}
+        >
+          <Settings size={14} strokeWidth={1.75} />
+          <span>{t('settings.title')}</span>
+        </button>
+        <span className="version-tag">v{APP_VERSION}</span>
+      </div>
+
+      {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
     </aside>
   )
 }

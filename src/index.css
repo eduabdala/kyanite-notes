@@ -1,6 +1,11 @@
+:root {
+  --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* --- Kyanite: azul-safira profundo sobre tons neutros azulados --- */
 :root,
-[data-theme='dark'] {
-  /* paleta inspirada na pedra kyanite: azul-safira profundo sobre tons neutros azulados */
+[data-theme-color='kyanite'][data-theme='dark'] {
   --bg-primary: #14181f;
   --bg-secondary: #1b2129;
   --bg-hover: #232b35;
@@ -11,11 +16,9 @@
   --accent-hover: #5b93f7;
   --selection-bg: rgba(61, 127, 245, 0.3);
   --danger: #e5484d;
-  --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-[data-theme='light'] {
+[data-theme-color='kyanite'][data-theme='light'] {
   --bg-primary: #ffffff;
   --bg-secondary: #f0f4fa;
   --bg-hover: #e3eaf5;
@@ -25,6 +28,195 @@
   --accent: #2a5fd8;
   --accent-hover: #1c4fc4;
   --selection-bg: rgba(42, 95, 216, 0.18);
+  --danger: #d13438;
+}
+
+/* --- Malachite: verde profundo da malaquita sobre tons neutros esverdeados --- */
+[data-theme-color='malachite'][data-theme='dark'] {
+  --bg-primary: #121915;
+  --bg-secondary: #18211c;
+  --bg-hover: #202b24;
+  --border-color: #2a3a30;
+  --text-primary: #dfe9e2;
+  --text-secondary: #82988a;
+  --accent: #23a463;
+  --accent-hover: #3fbd7a;
+  --selection-bg: rgba(35, 164, 99, 0.28);
+  --danger: #e5484d;
+}
+
+[data-theme-color='malachite'][data-theme='light'] {
+  --bg-primary: #ffffff;
+  --bg-secondary: #eef6f1;
+  --bg-hover: #dcefe3;
+  --border-color: #c9e2d3;
+  --text-primary: #142620;
+  --text-secondary: #547063;
+  --accent: #16824e;
+  --accent-hover: #106b3f;
+  --selection-bg: rgba(22, 130, 78, 0.16);
+  --danger: #d13438;
+}
+
+/* --- Sardius (cornalina): laranja-avermelhado terroso sobre tons neutros quentes --- */
+[data-theme-color='sardius'][data-theme='dark'] {
+  --bg-primary: #1c1512;
+  --bg-secondary: #241a16;
+  --bg-hover: #2e221c;
+  --border-color: #3e2c22;
+  --text-primary: #ece0d8;
+  --text-secondary: #a08a7a;
+  --accent: #e0692f;
+  --accent-hover: #ea8352;
+  --selection-bg: rgba(224, 105, 47, 0.28);
+  --danger: #e5484d;
+}
+
+[data-theme-color='sardius'][data-theme='light'] {
+  --bg-primary: #fffaf7;
+  --bg-secondary: #faeee5;
+  --bg-hover: #f5e0d1;
+  --border-color: #e8cdb8;
+  --text-primary: #2b1d14;
+  --text-secondary: #7a6252;
+  --accent: #c8531f;
+  --accent-hover: #a84418;
+  --selection-bg: rgba(200, 83, 31, 0.16);
+  --danger: #d13438;
+}
+
+/* --- Amethystus: roxo intenso da ametista sobre tons neutros violáceos --- */
+[data-theme-color='amethystus'][data-theme='dark'] {
+  --bg-primary: #171420;
+  --bg-secondary: #1e1a29;
+  --bg-hover: #272233;
+  --border-color: #362f47;
+  --text-primary: #e5e0ee;
+  --text-secondary: #918aa5;
+  --accent: #9061f0;
+  --accent-hover: #a67cf5;
+  --selection-bg: rgba(144, 97, 240, 0.28);
+  --danger: #e5484d;
+}
+
+[data-theme-color='amethystus'][data-theme='light'] {
+  --bg-primary: #fdfbff;
+  --bg-secondary: #f2edfa;
+  --bg-hover: #e6dcf5;
+  --border-color: #d7c7ec;
+  --text-primary: #241f30;
+  --text-secondary: #6c6280;
+  --accent: #7239d6;
+  --accent-hover: #5e2eb3;
+  --selection-bg: rgba(114, 57, 214, 0.16);
+  --danger: #d13438;
+}
+
+/* --- Rhodonite: rosa profundo sobre tons neutros rosados --- */
+[data-theme-color='rhodonite'][data-theme='dark'] {
+  --bg-primary: #1e1418;
+  --bg-secondary: #271a20;
+  --bg-hover: #32222a;
+  --border-color: #44303a;
+  --text-primary: #ecdfe4;
+  --text-secondary: #a08a94;
+  --accent: #e0559a;
+  --accent-hover: #ea77b1;
+  --selection-bg: rgba(224, 85, 154, 0.28);
+  --danger: #e5484d;
+}
+
+[data-theme-color='rhodonite'][data-theme='light'] {
+  --bg-primary: #fffafc;
+  --bg-secondary: #faeaf1;
+  --bg-hover: #f5d9e6;
+  --border-color: #e8c1d6;
+  --text-primary: #2b1a22;
+  --text-secondary: #7a5c68;
+  --accent: #c22d7c;
+  --accent-hover: #a32267;
+  --selection-bg: rgba(194, 45, 124, 0.16);
+  --danger: #d13438;
+}
+
+/* --- Citrinus: amarelo dourado do citrino sobre tons neutros quentes --- */
+[data-theme-color='citrinus'][data-theme='dark'] {
+  --bg-primary: #1a1710;
+  --bg-secondary: #221e15;
+  --bg-hover: #2c261b;
+  --border-color: #3c341f;
+  --text-primary: #ece6d6;
+  --text-secondary: #a39c80;
+  --accent: #d4b02a;
+  --accent-hover: #e0c04c;
+  --selection-bg: rgba(212, 176, 42, 0.28);
+  --danger: #e5484d;
+}
+
+[data-theme-color='citrinus'][data-theme='light'] {
+  --bg-primary: #fffdf5;
+  --bg-secondary: #f8f1de;
+  --bg-hover: #f0e5c2;
+  --border-color: #e2d29c;
+  --text-primary: #2a2413;
+  --text-secondary: #7c7250;
+  --accent: #a5811a;
+  --accent-hover: #8a6a13;
+  --selection-bg: rgba(165, 129, 26, 0.16);
+  --danger: #d13438;
+}
+
+/* --- Onyx: preto e cinza neutro, sem tonalidade de cor dominante --- */
+[data-theme-color='onyx'][data-theme='dark'] {
+  --bg-primary: #121212;
+  --bg-secondary: #1a1a1a;
+  --bg-hover: #242424;
+  --border-color: #333333;
+  --text-primary: #e6e6e6;
+  --text-secondary: #929292;
+  --accent: #9aa3ad;
+  --accent-hover: #b3bac2;
+  --selection-bg: rgba(154, 163, 173, 0.25);
+  --danger: #e5484d;
+}
+
+[data-theme-color='onyx'][data-theme='light'] {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f2f2f2;
+  --bg-hover: #e4e4e4;
+  --border-color: #d0d0d0;
+  --text-primary: #1a1a1a;
+  --text-secondary: #626262;
+  --accent: #4a5259;
+  --accent-hover: #333a40;
+  --selection-bg: rgba(74, 82, 89, 0.14);
+  --danger: #d13438;
+}
+
+/* --- Beryllus: verde-água do berilo sobre tons neutros esverdeados-azulados --- */
+[data-theme-color='beryllus'][data-theme='dark'] {
+  --bg-primary: #101a19;
+  --bg-secondary: #162220;
+  --bg-hover: #1e2c2a;
+  --border-color: #2a3c39;
+  --text-primary: #dcecea;
+  --text-secondary: #7f9a96;
+  --accent: #22b0a8;
+  --accent-hover: #3fc7bf;
+  --selection-bg: rgba(34, 176, 168, 0.28);
+  --danger: #e5484d;
+}
+
+[data-theme-color='beryllus'][data-theme='light'] {
+  --bg-primary: #f7fffe;
+  --bg-secondary: #e6f6f4;
+  --bg-hover: #d3ede9;
+  --border-color: #bce0db;
+  --text-primary: #132724;
+  --text-secondary: #567470;
+  --accent: #128077;
+  --accent-hover: #0e6a62;
+  --selection-bg: rgba(18, 128, 119, 0.16);
   --danger: #d13438;
 }
 
