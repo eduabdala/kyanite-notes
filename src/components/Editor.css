@@ -1,0 +1,16 @@
+.editor-container {
+  flex: 1;
+  width: 100%;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.editor-container .cm-editor {
+  height: 100%;
+  outline: none;
+}
+
+.editor-container .cm-content {
+  max-width: 720px;
+  margin: 0 auto;
+}

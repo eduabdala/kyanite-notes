@@ -1,0 +1,359 @@
+import { create } from 'zustand'
+import { GitHubClient, loadGitHubConfig, saveGitHubConfig, clearGitHubConfig } from '../lib/github'
+import {
+  loadLocalNotes,
+  saveLocalNotes,
+  loadLocalFolders,
+  saveLocalFolders,
+  pathToName,
+  nameToPath,
+  joinPath,
+  buildFolderTree,
+  FOLDER_MARKER,
+} from '../lib/vault'
+import { buildLinkGraph } from '../lib/wikilinks'
+import { useTabsStore } from './useTabsStore'
+import type { GitHubConfig, LinkGraph, Note, TreeNode } from '../lib/types'
+
+type SyncStatus = 'idle' | 'syncing' | 'error'
+
+interface VaultState {
+  notes: Note[]
+  /** pastas vazias conhecidas (pastas com notas são inferidas automaticamente dos paths) */
+  emptyFolders: string[]
+  linkGraph: LinkGraph
+  githubConfig: GitHubConfig | null
+  syncStatus: SyncStatus
+  syncError: string | null
+
+  connectGitHub: (config: GitHubConfig) => Promise<{ ok: boolean; error?: string }>
+  disconnectGitHub: () => void
+  pullFromGitHub: () => Promise<void>
+  pushNote: (path: string) => Promise<void>
+  syncAll: () => Promise<void>
+
+  createNote: (name: string, folder?: string) => Note
+  updateNoteContent: (path: string, content: string) => void
+  deleteNote: (path: string) => Promise<void>
+  renameNote: (path: string, newName: string) => Promise<void>
+
+  createFolder: (name: string, parent?: string) => void
+  deleteFolder: (path: string) => Promise<void>
+  moveNote: (path: string, targetFolder: string) => Promise<void>
+  getFolderTree: () => TreeNode[]
+}
+
+function recomputeGraph(notes: Note[]): LinkGraph {
+  return buildLinkGraph(notes)
+}
+
+export const useVaultStore = create<VaultState>((set, get) => ({
+  notes: loadLocalNotes(),
+  emptyFolders: loadLocalFolders(),
+  linkGraph: recomputeGraph(loadLocalNotes()),
+  githubConfig: loadGitHubConfig(),
+  syncStatus: 'idle',
+  syncError: null,
+
+  connectGitHub: async (config) => {
+    const client = new GitHubClient(config)
+    const result = await client.verifyAccess()
+    if (result.ok) {
+      saveGitHubConfig(config)
+      set({ githubConfig: config })
+    }
+    return result
+  },
+
+  disconnectGitHub: () => {
+    clearGitHubConfig()
+    set({ githubConfig: null })
+  },
+
+  pullFromGitHub: async () => {
+    const { githubConfig } = get()
+    if (!githubConfig) return
+    set({ syncStatus: 'syncing', syncError: null })
+
+    try {
+      const client = new GitHubClient(githubConfig)
+      const files = await client.listVaultFiles()
+
+      const noteFiles = files.filter((f) => f.path.endsWith('.md'))
+      const folderMarkers = files.filter((f) => f.path.endsWith(`/${FOLDER_MARKER}`))
+      const remoteEmptyFolders = folderMarkers.map((f) =>
+        f.path.slice(0, f.path.length - FOLDER_MARKER.length - 1)
+      )
+
+      const remoteNotes: Note[] = await Promise.all(
+        noteFiles.map(async ({ path, sha }) => {
+          const file = await client.getFileContent(path)
+          return {
+            path,
+            name: pathToName(path),
+            content: file.content,
+            sha,
+            updatedAt: Date.now(),
+            dirty: false,
+          }
+        })
+      )
+
+      // preserva notas locais dirty que ainda não foram enviadas
+      const localDirty = get().notes.filter((n) => n.dirty)
+      const merged = [...remoteNotes]
+      for (const dirtyNote of localDirty) {
+        const idx = merged.findIndex((n) => n.path === dirtyNote.path)
+        if (idx >= 0) merged[idx] = dirtyNote
+        else merged.push(dirtyNote)
+      }
+
+      // preserva pastas vazias criadas localmente que ainda não foram enviadas
+      const localFolders = get().emptyFolders
+      const mergedFolders = Array.from(new Set([...remoteEmptyFolders, ...localFolders]))
+
+      saveLocalNotes(merged)
+      saveLocalFolders(mergedFolders)
+      set({
+        notes: merged,
+        emptyFolders: mergedFolders,
+        linkGraph: recomputeGraph(merged),
+        syncStatus: 'idle',
+      })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao sincronizar'
+      set({ syncStatus: 'error', syncError: message })
+    }
+  },
+
+  pushNote: async (path) => {
+    const { githubConfig, notes } = get()
+    if (!githubConfig) return
+    const note = notes.find((n) => n.path === path)
+    if (!note) return
+
+    set({ syncStatus: 'syncing', syncError: null })
+    try {
+      const client = new GitHubClient(githubConfig)
+      const sha = await client.putFile(note.path, note.content, note.sha)
+      const updated = notes.map((n) =>
+        n.path === path ? { ...n, sha, dirty: false } : n
+      )
+      saveLocalNotes(updated)
+      set({ notes: updated, syncStatus: 'idle' })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao enviar nota'
+      set({ syncStatus: 'error', syncError: message })
+    }
+  },
+
+  syncAll: async () => {
+    const { notes, emptyFolders, githubConfig } = get()
+    if (!githubConfig) return
+    const dirtyNotes = notes.filter((n) => n.dirty)
+
+    set({ syncStatus: 'syncing', syncError: null })
+    try {
+      const client = new GitHubClient(githubConfig)
+      let current = notes
+      for (const note of dirtyNotes) {
+        const sha = await client.putFile(note.path, note.content, note.sha)
+        current = current.map((n) => (n.path === note.path ? { ...n, sha, dirty: false } : n))
+      }
+      saveLocalNotes(current)
+
+      // garante que pastas vazias locais existam como marcador no GitHub também
+      for (const folder of emptyFolders) {
+        try {
+          await client.putFile(`${folder}/${FOLDER_MARKER}`, '')
+        } catch {
+          // marcador provavelmente já existe no remoto (pasta não está mais vazia lá, ou já sincronizada); ignora
+        }
+      }
+
+      set({ notes: current, syncStatus: 'idle' })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao sincronizar'
+      set({ syncStatus: 'error', syncError: message })
+    }
+  },
+
+  createNote: (name, folder) => {
+    const path = nameToPath(name, folder)
+    const note: Note = {
+      path,
+      name,
+      content: `# ${name}\n\n`,
+      updatedAt: Date.now(),
+      dirty: true,
+    }
+    const notes = [...get().notes, note]
+    saveLocalNotes(notes)
+    set({ notes, linkGraph: recomputeGraph(notes) })
+    useTabsStore.getState().openTab(path)
+    return note
+  },
+
+  updateNoteContent: (path, content) => {
+    const notes = get().notes.map((n) =>
+      n.path === path ? { ...n, content, dirty: true, updatedAt: Date.now() } : n
+    )
+    saveLocalNotes(notes)
+    set({ notes, linkGraph: recomputeGraph(notes) })
+  },
+
+  deleteNote: async (path) => {
+    const { githubConfig, notes } = get()
+    const note = notes.find((n) => n.path === path)
+    if (!note) return
+
+    if (githubConfig && note.sha) {
+      try {
+        const client = new GitHubClient(githubConfig)
+        await client.deleteFile(path, note.sha)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Erro ao excluir no GitHub'
+        set({ syncStatus: 'error', syncError: message })
+        return
+      }
+    }
+
+    const remaining = notes.filter((n) => n.path !== path)
+    saveLocalNotes(remaining)
+    set({ notes: remaining, linkGraph: recomputeGraph(remaining) })
+    useTabsStore.getState().closeTab(path)
+  },
+
+  renameNote: async (path, newName) => {
+    const { notes, githubConfig } = get()
+    const note = notes.find((n) => n.path === path)
+    if (!note) return
+    const folder = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : ''
+    const newPath = nameToPath(newName, folder)
+
+    if (githubConfig && note.sha) {
+      try {
+        const client = new GitHubClient(githubConfig)
+        // GitHub não tem "renomear": cria no novo path e remove o antigo
+        const sha = await client.putFile(newPath, note.content)
+        await client.deleteFile(path, note.sha)
+        const updated = notes.map((n) =>
+          n.path === path ? { ...n, path: newPath, name: newName, sha, dirty: false } : n
+        )
+        saveLocalNotes(updated)
+        set({ notes: updated, linkGraph: recomputeGraph(updated) })
+        useTabsStore.getState().renameTab(path, newPath)
+        return
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Erro ao renomear nota no GitHub'
+        set({ syncStatus: 'error', syncError: message })
+        return
+      }
+    }
+
+    const updated = notes.map((n) =>
+      n.path === path
+        ? { ...n, path: newPath, name: newName, dirty: true, sha: undefined }
+        : n
+    )
+    saveLocalNotes(updated)
+    set({ notes: updated, linkGraph: recomputeGraph(updated) })
+    useTabsStore.getState().renameTab(path, newPath)
+  },
+
+  createFolder: (name, parent = '') => {
+    const path = joinPath(parent, name.trim())
+    const { emptyFolders, githubConfig } = get()
+    if (emptyFolders.includes(path)) return
+
+    const updated = [...emptyFolders, path]
+    saveLocalFolders(updated)
+    set({ emptyFolders: updated })
+
+    if (githubConfig) {
+      const client = new GitHubClient(githubConfig)
+      client.putFile(`${path}/${FOLDER_MARKER}`, '').catch((err) => {
+        const message = err instanceof Error ? err.message : 'Erro ao criar pasta no GitHub'
+        set({ syncStatus: 'error', syncError: message })
+      })
+    }
+  },
+
+  deleteFolder: async (path) => {
+    const { notes, emptyFolders, githubConfig } = get()
+    const prefix = `${path}/`
+    const notesInside = notes.filter((n) => n.path.startsWith(prefix))
+
+    // remove todas as notas dentro da pasta (e no GitHub, se conectado)
+    if (githubConfig) {
+      try {
+        const client = new GitHubClient(githubConfig)
+        for (const note of notesInside) {
+          if (note.sha) await client.deleteFile(note.path, note.sha)
+        }
+        const markerPath = `${path}/${FOLDER_MARKER}`
+        // marcador só existe no GitHub se a pasta estava vazia; ignora erro se não existir
+        const files = await client.listVaultFiles()
+        const marker = files.find((f) => f.path === markerPath)
+        if (marker) await client.deleteFile(markerPath, marker.sha)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Erro ao excluir pasta no GitHub'
+        set({ syncStatus: 'error', syncError: message })
+        return
+      }
+    }
+
+    const remainingNotes = notes.filter((n) => !n.path.startsWith(prefix))
+    const remainingFolders = emptyFolders.filter((f) => f !== path && !f.startsWith(prefix))
+
+    saveLocalNotes(remainingNotes)
+    saveLocalFolders(remainingFolders)
+    set({
+      notes: remainingNotes,
+      emptyFolders: remainingFolders,
+      linkGraph: recomputeGraph(remainingNotes),
+    })
+    notesInside.forEach((n) => useTabsStore.getState().closeTab(n.path))
+  },
+
+  moveNote: async (path, targetFolder) => {
+    const { notes, githubConfig } = get()
+    const note = notes.find((n) => n.path === path)
+    if (!note) return
+
+    const newPath = joinPath(targetFolder, `${note.name}.md`)
+    if (newPath === path) return
+
+    if (githubConfig && note.sha) {
+      try {
+        const client = new GitHubClient(githubConfig)
+        // GitHub não tem "mover": cria no destino e remove a origem
+        const sha = await client.putFile(newPath, note.content)
+        await client.deleteFile(path, note.sha)
+        const updated = notes.map((n) =>
+          n.path === path ? { ...n, path: newPath, sha, dirty: false } : n
+        )
+        saveLocalNotes(updated)
+        set({ notes: updated, linkGraph: recomputeGraph(updated) })
+        useTabsStore.getState().renameTab(path, newPath)
+        return
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Erro ao mover nota no GitHub'
+        set({ syncStatus: 'error', syncError: message })
+        return
+      }
+    }
+
+    const updated = notes.map((n) =>
+      n.path === path ? { ...n, path: newPath, dirty: true, sha: undefined } : n
+    )
+    saveLocalNotes(updated)
+    set({ notes: updated, linkGraph: recomputeGraph(updated) })
+    useTabsStore.getState().renameTab(path, newPath)
+  },
+
+  getFolderTree: () => {
+    const { notes, emptyFolders } = get()
+    return buildFolderTree(notes, emptyFolders)
+  },
+}))
