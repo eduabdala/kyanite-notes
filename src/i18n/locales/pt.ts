@@ -81,6 +81,10 @@ export const pt = {
       cancel: 'Cancelar',
       connect: 'Conectar',
       connecting: 'Conectando...',
+      oauthHint: 'Entre com sua conta do GitHub e escolha o repositório para sincronizar suas notas.',
+      loginWithGitHub: 'Entrar com GitHub',
+      useTokenInstead: 'Usar um Personal Access Token em vez disso',
+      backToLogin: 'Voltar para o login',
       errors: {
         missingFields: 'Preencha owner, repositório e token.',
         generic: 'Não foi possível conectar. Verifique os dados.',

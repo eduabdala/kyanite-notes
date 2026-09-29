@@ -1,0 +1,14 @@
+{
+  "name": "kyanite-oauth-worker",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250408.0",
+    "wrangler": "^3.114.14"
+  }
+}

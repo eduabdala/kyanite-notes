@@ -22,6 +22,50 @@ export interface RemoteFile {
   sha: string
 }
 
+export interface RemoteRepo {
+  owner: string
+  repo: string
+  defaultBranch: string
+  private: boolean
+}
+
+/** Troca o `code` do OAuth Web Flow por um access_token, via o worker proxy (necessário por CORS). */
+export async function exchangeOAuthCode(
+  workerUrl: string,
+  code: string
+): Promise<{ ok: true; token: string } | { ok: false; error: string }> {
+  try {
+    const res = await fetch(workerUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    })
+    const data = await res.json()
+    if (!res.ok || !data.access_token) {
+      return { ok: false, error: data.error || 'Falha ao obter token' }
+    }
+    return { ok: true, token: data.access_token }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Erro de rede'
+    return { ok: false, error: message }
+  }
+}
+
+/** Lista os repositórios que o usuário autenticado tem acesso (para o dropdown pós-login). */
+export async function listUserRepos(token: string): Promise<RemoteRepo[]> {
+  const octokit = new Octokit({ auth: token })
+  const repos = await octokit.paginate(octokit.repos.listForAuthenticatedUser, {
+    per_page: 100,
+    sort: 'updated',
+  })
+  return repos.map((r) => ({
+    owner: r.owner.login,
+    repo: r.name,
+    defaultBranch: r.default_branch,
+    private: r.private,
+  }))
+}
+
 /** Cliente fino sobre a API REST do GitHub, focado em ler/escrever arquivos .md de um repo */
 export class GitHubClient {
   private octokit: Octokit

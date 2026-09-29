@@ -93,3 +93,32 @@
   background: transparent;
   color: var(--text-primary);
 }
+
+.modal-content select {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.btn-oauth {
+  width: 100%;
+  text-align: center;
+  padding: 10px 16px;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 10px 0 0;
+  text-align: center;
+}
+
+.btn-link:hover {
+  text-decoration: underline;
+}
