@@ -17,7 +17,25 @@ import { buildTagTree } from '../lib/tags'
 import { diffLines, isDiffEmpty } from '../lib/diff'
 import { compressImage } from '../lib/imageCompress'
 import { buildAttachmentFileName, attachmentPath } from '../lib/attachments'
-import { usePushConfirmStore } from './usePushConfirmStore'
+import {
+  PLUGIN_CONFIG_PATH,
+  loadLocalPluginConfig,
+  saveLocalPluginConfig,
+  parsePluginConfig,
+  serializePluginConfig,
+  type PluginConfig,
+  type PluginId,
+} from '../lib/plugins'
+import {
+  KANBAN_BOARD_PATH,
+  emptyCollection,
+  parseCollection,
+  serializeCollection,
+  retargetNoteLinks,
+  clearNoteLinks,
+  type KanbanCollection,
+} from '../lib/kanban'
+import { useConflictStore } from './useConflictStore'
 import { useTabsStore } from './useTabsStore'
 import type { GitHubConfig, LinkGraph, Note, TreeNode } from '../lib/types'
 
@@ -31,6 +49,9 @@ interface VaultState {
   githubConfig: GitHubConfig | null
   syncStatus: SyncStatus
   syncError: string | null
+  /** soma do tamanho de todos os arquivos do repo (notas + anexos), em bytes; null se ainda não calculado */
+  repoUsageBytes: number | null
+  refreshRepoUsage: () => Promise<void>
 
   connectGitHub: (config: GitHubConfig) => Promise<{ ok: boolean; error?: string }>
   disconnectGitHub: () => void
@@ -58,10 +79,31 @@ interface VaultState {
   /** Retorna a data URL do anexo se já estiver em cache; caso contrário, dispara o download
    * em background (via Contents API autenticada) e atualiza o cache quando terminar. */
   getAttachmentUrl: (fileName: string) => string | null
+
+  /** Config de plugins (`.kyanite/config.json`), compartilhada via repo quando conectado */
+  pluginConfig: PluginConfig
+  isPluginEnabled: (id: PluginId) => boolean
+  setPluginEnabled: (id: PluginId, enabled: boolean) => Promise<void>
+
+  /** Coleção de quadros Kanban do vault (`.kyanite/kanban.json`), independente das notas */
+  kanbanCollection: KanbanCollection
+  saveKanbanCollection: (collection: KanbanCollection) => Promise<void>
 }
 
 function recomputeGraph(notes: Note[]): LinkGraph {
   return buildLinkGraph(notes)
+}
+
+const KANBAN_LOCAL_KEY = 'kyanite:kanban-board'
+
+function loadLocalKanbanCollection(): KanbanCollection {
+  const raw = localStorage.getItem(KANBAN_LOCAL_KEY)
+  if (!raw) return emptyCollection()
+  return parseCollection(raw)
+}
+
+function saveLocalKanbanCollection(collection: KanbanCollection) {
+  localStorage.setItem(KANBAN_LOCAL_KEY, serializeCollection(collection))
 }
 
 /** Antes de sobrescrever uma nota existente no GitHub, verifica se o remoto mudou desde o
@@ -77,7 +119,7 @@ async function confirmPushIfRemoteChanged(client: GitHubClient, note: Note): Pro
     const lines = diffLines(remote.content, note.content)
     if (isDiffEmpty(lines)) return true // conteúdo idêntico, mesmo com sha diferente
 
-    return await usePushConfirmStore.getState().confirmOverwrite(note.path, lines)
+    return await useConflictStore.getState().confirmOverwrite(note.path, lines)
   } catch {
     // arquivo pode ter sido deletado no remoto, ou outro erro de leitura: deixa o putFile
     // original tratar o erro (ex: recriar o arquivo)
@@ -92,6 +134,19 @@ export const useVaultStore = create<VaultState>((set, get) => ({
   githubConfig: loadGitHubConfig(),
   syncStatus: 'idle',
   syncError: null,
+  repoUsageBytes: null,
+
+  refreshRepoUsage: async () => {
+    const { githubConfig } = get()
+    if (!githubConfig) return
+    try {
+      const client = new GitHubClient(githubConfig)
+      const bytes = await client.getRepoUsageBytes()
+      set({ repoUsageBytes: bytes })
+    } catch {
+      // não interrompe o fluxo principal por falha ao calcular uso; mantém o valor anterior
+    }
+  },
 
   connectGitHub: async (config) => {
     const client = new GitHubClient(config)
@@ -99,13 +154,14 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     if (result.ok) {
       saveGitHubConfig(config)
       set({ githubConfig: config })
+      get().refreshRepoUsage()
     }
     return result
   },
 
   disconnectGitHub: () => {
     clearGitHubConfig()
-    set({ githubConfig: null })
+    set({ githubConfig: null, repoUsageBytes: null })
   },
 
   pullFromGitHub: async () => {
@@ -137,11 +193,32 @@ export const useVaultStore = create<VaultState>((set, get) => ({
         })
       )
 
-      // preserva notas locais dirty que ainda não foram enviadas
+      // notas locais com mudanças ainda não enviadas: se o remoto também mudou (sha diferente
+      // do que tínhamos quando editamos localmente) E o conteúdo realmente diverge, é um
+      // conflito real — pergunta ao usuário qual versão manter em vez de decidir silenciosamente
       const localDirty = get().notes.filter((n) => n.dirty)
       const merged = [...remoteNotes]
+
       for (const dirtyNote of localDirty) {
         const idx = merged.findIndex((n) => n.path === dirtyNote.path)
+        const remoteNote = idx >= 0 ? merged[idx] : null
+
+        const remoteChangedSinceLocalEdit = remoteNote && remoteNote.sha !== dirtyNote.sha
+        const contentDiffers = remoteNote && remoteNote.content !== dirtyNote.content
+
+        if (remoteNote && remoteChangedSinceLocalEdit && contentDiffers) {
+          const lines = diffLines(remoteNote.content, dirtyNote.content)
+          const resolution = isDiffEmpty(lines)
+            ? 'keep-local'
+            : await useConflictStore.getState().confirmPullConflict(dirtyNote.path, lines)
+
+          if (resolution === 'use-remote') {
+            // aceita a versão remota; a nota deixa de estar dirty pois não há mais mudança local pendente
+            continue
+          }
+        }
+
+        // mantém a versão local (dirty), seja por não ter conflito real ou por escolha do usuário
         if (idx >= 0) merged[idx] = dirtyNote
         else merged.push(dirtyNote)
       }
@@ -150,14 +227,38 @@ export const useVaultStore = create<VaultState>((set, get) => ({
       const localFolders = get().emptyFolders
       const mergedFolders = Array.from(new Set([...remoteEmptyFolders, ...localFolders]))
 
+      // config de plugins (.kyanite/config.json): o repo é a fonte de verdade compartilhada
+      // entre dispositivos quando existe; se ainda não existir no repo, mantém a config local
+      let pluginConfig = get().pluginConfig
+      try {
+        const configFile = await client.getFileContent(PLUGIN_CONFIG_PATH)
+        pluginConfig = parsePluginConfig(configFile.content)
+        saveLocalPluginConfig(pluginConfig)
+      } catch {
+        // arquivo ainda não existe no repo; mantém a config local como está
+      }
+
+      // quadros Kanban (.kyanite/kanban.json): mesma lógica — repo é a fonte de verdade
+      let kanbanCollection = get().kanbanCollection
+      try {
+        const boardFile = await client.getFileContent(KANBAN_BOARD_PATH)
+        kanbanCollection = parseCollection(boardFile.content)
+        saveLocalKanbanCollection(kanbanCollection)
+      } catch {
+        // arquivo ainda não existe no repo; mantém a coleção local como está
+      }
+
       saveLocalNotes(merged)
       saveLocalFolders(mergedFolders)
       set({
         notes: merged,
         emptyFolders: mergedFolders,
         linkGraph: recomputeGraph(merged),
+        pluginConfig,
+        kanbanCollection,
         syncStatus: 'idle',
       })
+      get().refreshRepoUsage()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao sincronizar'
       set({ syncStatus: 'error', syncError: message })
@@ -182,6 +283,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
       )
       saveLocalNotes(updated)
       set({ notes: updated, syncStatus: 'idle' })
+      get().refreshRepoUsage()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao enviar nota'
       set({ syncStatus: 'error', syncError: message })
@@ -221,6 +323,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
       }
 
       set({ notes: current, syncStatus: 'idle' })
+      get().refreshRepoUsage()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao sincronizar'
       set({ syncStatus: 'error', syncError: message })
@@ -292,6 +395,10 @@ export const useVaultStore = create<VaultState>((set, get) => ({
         saveLocalNotes(updated)
         set({ notes: updated, linkGraph: recomputeGraph(updated) })
         useTabsStore.getState().renameTab(path, newPath)
+        {
+          const retargeted = retargetNoteLinks(get().kanbanCollection, path, newPath)
+          if (retargeted !== get().kanbanCollection) get().saveKanbanCollection(retargeted)
+        }
         return
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Erro ao renomear nota no GitHub'
@@ -308,6 +415,10 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     saveLocalNotes(updated)
     set({ notes: updated, linkGraph: recomputeGraph(updated) })
     useTabsStore.getState().renameTab(path, newPath)
+    {
+      const retargeted = retargetNoteLinks(get().kanbanCollection, path, newPath)
+      if (retargeted !== get().kanbanCollection) get().saveKanbanCollection(retargeted)
+    }
   },
 
   createFolder: (name, parent = '') => {
@@ -385,6 +496,10 @@ export const useVaultStore = create<VaultState>((set, get) => ({
         saveLocalNotes(updated)
         set({ notes: updated, linkGraph: recomputeGraph(updated) })
         useTabsStore.getState().renameTab(path, newPath)
+        {
+          const retargeted = retargetNoteLinks(get().kanbanCollection, path, newPath)
+          if (retargeted !== get().kanbanCollection) get().saveKanbanCollection(retargeted)
+        }
         return
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Erro ao mover nota no GitHub'
@@ -399,6 +514,10 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     saveLocalNotes(updated)
     set({ notes: updated, linkGraph: recomputeGraph(updated) })
     useTabsStore.getState().renameTab(path, newPath)
+    {
+      const retargeted = retargetNoteLinks(get().kanbanCollection, path, newPath)
+      if (retargeted !== get().kanbanCollection) get().saveKanbanCollection(retargeted)
+    }
   },
 
   getFolderTree: () => {
@@ -430,6 +549,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
         next.set(fileName, dataUrl)
         return { attachmentCache: next }
       })
+      get().refreshRepoUsage()
 
       return { ok: true, fileName }
     } catch (err) {
@@ -473,6 +593,62 @@ export const useVaultStore = create<VaultState>((set, get) => ({
       })
 
     return null
+  },
+
+  pluginConfig: loadLocalPluginConfig(),
+  kanbanCollection: loadLocalKanbanCollection(),
+
+  isPluginEnabled: (id) => {
+    return get().pluginConfig.plugins[id] ?? false
+  },
+
+  setPluginEnabled: async (id, enabled) => {
+    const current = get().pluginConfig
+    const next: PluginConfig = { plugins: { ...current.plugins, [id]: enabled } }
+
+    saveLocalPluginConfig(next)
+    set({ pluginConfig: next })
+
+    const { githubConfig } = get()
+    if (!githubConfig) return
+
+    try {
+      const client = new GitHubClient(githubConfig)
+      let sha: string | undefined
+      try {
+        const existing = await client.getFileContent(PLUGIN_CONFIG_PATH)
+        sha = existing.sha
+      } catch {
+        // arquivo ainda não existe no repo; será criado sem sha
+      }
+      await client.putFile(PLUGIN_CONFIG_PATH, serializePluginConfig(next), sha)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao salvar configuração de plugins'
+      set({ syncStatus: 'error', syncError: message })
+    }
+  },
+
+  saveKanbanCollection: async (collection) => {
+    saveLocalKanbanCollection(collection)
+    set({ kanbanCollection: collection })
+
+    const { githubConfig } = get()
+    if (!githubConfig) return
+
+    try {
+      const client = new GitHubClient(githubConfig)
+      let sha: string | undefined
+      try {
+        const existing = await client.getFileContent(KANBAN_BOARD_PATH)
+        sha = existing.sha
+      } catch {
+        // arquivo ainda não existe no repo; será criado sem sha
+      }
+      await client.putFile(KANBAN_BOARD_PATH, serializeCollection(collection), sha)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao salvar os quadros Kanban'
+      set({ syncStatus: 'error', syncError: message })
+    }
   },
 }))
 

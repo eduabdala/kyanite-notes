@@ -1,9 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Menu } from 'lucide-react'
+import { Menu, Puzzle, LayoutGrid, Timer } from 'lucide-react'
 import { useVaultStore } from '../store/useVaultStore'
+import { useTabsStore } from '../store/useTabsStore'
+import { useUiStore } from '../store/useUiStore'
+import { usePomodoroStore } from '../store/usePomodoroStore'
 import { AppLogo } from './AppLogo'
 import { GitHubConnectModal } from './GitHubConnectModal'
+import { PomodoroWidget } from './PomodoroWidget'
 import './TopBar.css'
 
 interface TopBarProps {
@@ -19,9 +23,41 @@ export function TopBar({ onOpenSidebar }: TopBarProps) {
   const syncAll = useVaultStore((s) => s.syncAll)
   const pullFromGitHub = useVaultStore((s) => s.pullFromGitHub)
   const disconnectGitHub = useVaultStore((s) => s.disconnectGitHub)
+
+  const kanbanEnabled = useVaultStore((s) => s.isPluginEnabled('kanban'))
+  const pomodoroEnabled = useVaultStore((s) => s.isPluginEnabled('pomodoro'))
+  const activePath = useTabsStore((s) => s.activePath)
+  const requestViewMode = useUiStore((s) => s.requestViewMode)
+  const togglePomodoro = usePomodoroStore((s) => s.toggleOpen)
+
   const [showModal, setShowModal] = useState(false)
+  const [pluginsOpen, setPluginsOpen] = useState(false)
+  const pluginsRef = useRef<HTMLDivElement>(null)
 
   const dirtyCount = notes.filter((n) => n.dirty).length
+  const anyPluginEnabled = kanbanEnabled || pomodoroEnabled
+
+  // fecha o dropdown ao clicar fora dele
+  useEffect(() => {
+    if (!pluginsOpen) return
+    function handleClickOutside(e: MouseEvent) {
+      if (pluginsRef.current && !pluginsRef.current.contains(e.target as Node)) {
+        setPluginsOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [pluginsOpen])
+
+  function openKanban() {
+    setPluginsOpen(false)
+    requestViewMode('board')
+  }
+
+  function openPomodoro() {
+    setPluginsOpen(false)
+    togglePomodoro()
+  }
 
   return (
     <header className="top-bar">
@@ -33,7 +69,42 @@ export function TopBar({ onOpenSidebar }: TopBarProps) {
         <span className="app-title">{t('app.title')}</span>
       </div>
 
+      <div className="top-bar-center">
+        {pomodoroEnabled && <PomodoroWidget />}
+      </div>
+
       <div className="sync-area">
+        {anyPluginEnabled && (
+          <div className="plugins-menu" ref={pluginsRef}>
+            <button
+              className={`icon-toggle-btn ${pluginsOpen ? 'active' : ''}`}
+              onClick={() => setPluginsOpen((o) => !o)}
+              title={t('topBar.plugins')}
+            >
+              <Puzzle size={16} strokeWidth={1.75} />
+            </button>
+
+            {pluginsOpen && (
+              <div className="plugins-dropdown">
+                {kanbanEnabled && (
+                  <button className="plugins-dropdown-item" onClick={openKanban} disabled={!activePath}>
+                    <LayoutGrid size={15} strokeWidth={1.75} />
+                    <span>{t('plugins.kanban.name')}</span>
+                    <span className="plugins-dropdown-hint">{t('topBar.pluginShortcuts.kanban')}</span>
+                  </button>
+                )}
+                {pomodoroEnabled && (
+                  <button className="plugins-dropdown-item" onClick={openPomodoro}>
+                    <Timer size={15} strokeWidth={1.75} />
+                    <span>{t('plugins.pomodoro.name')}</span>
+                    <span className="plugins-dropdown-hint">{t('topBar.pluginShortcuts.pomodoro')}</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {syncStatus === 'error' && (
           <span className="sync-error" title={syncError ?? ''}>
             {t('topBar.syncError')}
