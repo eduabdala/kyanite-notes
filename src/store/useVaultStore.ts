@@ -346,6 +346,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     return note
   },
 
+  
   updateNoteContent: (path, content) => {
     const notes = get().notes.map((n) =>
       n.path === path ? { ...n, content, dirty: true, updatedAt: Date.now() } : n

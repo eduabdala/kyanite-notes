@@ -9,6 +9,12 @@
   background: var(--bg-primary);
 }
 
+@media (max-width: 768px) {
+  .pomodoro-widget{
+  display: none;
+  }
+}
+
 /* alerta visual ao fim de uma fase: pulsa o contorno por alguns segundos */
 @keyframes pomodoro-flash {
   0%, 100% {

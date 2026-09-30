@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { FolderPlus, FilePlus, X, PanelLeftClose, Settings, Tag, Folder } from 'lucide-react'
+import { FolderPlus, FilePlus, X, PanelLeftClose, Settings, Tag, Folder, Pen } from 'lucide-react'
 import { useVaultStore } from '../store/useVaultStore'
 import { useTabsStore } from '../store/useTabsStore'
 import { useCreationStore } from '../store/useCreationStore'
+//import { useEditionStore } from '../store/useEditeStore'
 import { useConfirmStore } from '../store/useConfirmStore'
 import { FolderTree } from './FolderTree'
 import { TagTree } from './TagTree'
@@ -21,6 +22,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
   const { t } = useTranslation()
   const notes = useVaultStore((s) => s.notes)
   const deleteNote = useVaultStore((s) => s.deleteNote)
+  const renameNote = useVaultStore((s) => s.renameNote)
   const getFolderTree = useVaultStore((s) => s.getFolderTree)
   const getTagTree = useVaultStore((s) => s.getTagTree)
   const emptyFolders = useVaultStore((s) => s.emptyFolders)
@@ -28,6 +30,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
   const openTab = useTabsStore((s) => s.openTab)
   const moveNote = useVaultStore((s) => s.moveNote)
   const creation = useCreationStore()
+  //const edition = useEditionStore()
   const confirm = useConfirmStore((s) => s.confirm)
   const [query, setQuery] = useState('')
   const [rootDragOver, setRootDragOver] = useState(false)
@@ -51,6 +54,12 @@ export function Sidebar({ onCollapse }: SidebarProps) {
     e.stopPropagation()
     if (!(await confirm(t('sidebar.deleteNoteConfirm')))) return
     await deleteNote(path)
+  }
+
+  async function handleRename(e: React.MouseEvent, path: string, newPath: string) {
+    e.stopPropagation()
+    if (!(await confirm(t('sidebar.deleteNoteConfirm')))) return
+    await renameNote(path, newPath)
   }
 
   function handleRootDragOver(e: React.DragEvent) {
@@ -123,11 +132,18 @@ export function Sidebar({ onCollapse }: SidebarProps) {
                 {note.dirty && <span className="dirty-dot" title={t('sidebar.notSynced')} />}
               </span>
               <button
-                className="btn-delete-note"
-                onClick={(e) => handleDelete(e, note.path)}
+                className="btn-edit-note"
+                onClick={(e) => handleRename(e, note.path, '')}
                 title={t('sidebar.delete')}
               >
-                <X size={14} strokeWidth={1.75} />
+                <X size={14} strokeWidth={1} />
+              </button>
+              <button
+                className="btn-delete-note"
+                onClick={(e) => handleDelete(e, note.path)}
+                title={t('AAAA')}
+              >
+                <Pen size={14} strokeWidth={1.75} />
               </button>
             </li>
           ))}

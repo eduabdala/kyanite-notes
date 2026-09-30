@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ChevronRight, FilePlus, FolderPlus, X } from 'lucide-react'
+import { ChevronRight, FilePlus, FolderPlus, Pen, X } from 'lucide-react'
 import { useVaultStore } from '../store/useVaultStore'
 import { useTabsStore } from '../store/useTabsStore'
 import { useCreationStore } from '../store/useCreationStore'
@@ -135,6 +135,7 @@ function FolderNode({ node, depth }: { node: TreeNode; depth: number }) {
   )
 }
 
+
 function NoteNode({ node, depth }: { node: TreeNode; depth: number }) {
   const { t } = useTranslation()
   const activePath = useTabsStore((s) => s.activePath)
@@ -142,6 +143,10 @@ function NoteNode({ node, depth }: { node: TreeNode; depth: number }) {
   const deleteNote = useVaultStore((s) => s.deleteNote)
   const notes = useVaultStore((s) => s.notes)
   const confirm = useConfirmStore((s) => s.confirm)
+  const renameNote = useVaultStore((s) => s.renameNote)
+
+  const [isRenaming, setIsRenaming] = useState(false)
+  const [newName, setNewName] = useState(node.name)
 
   const note = notes.find((n) => n.path === node.path)
 
@@ -149,6 +154,37 @@ function NoteNode({ node, depth }: { node: TreeNode; depth: number }) {
     e.stopPropagation()
     if (!(await confirm(t('sidebar.deleteNoteConfirm')))) return
     await deleteNote(node.path)
+  }
+
+  function handleStartRename(e: React.MouseEvent) {
+    e.stopPropagation()
+    setNewName(node.name)
+    setIsRenaming(true)
+  }
+
+  async function handleConfirmRename() {
+    const trimmed = newName.trim()
+    if (trimmed && trimmed !== node.name) {
+      // Monta o novo path substituindo o nome antigo pelo novo
+      const parentPath = node.path.substring(0, node.path.lastIndexOf('/'))
+      const newPath = parentPath ? `${parentPath}/${trimmed}` : trimmed
+      await renameNote(node.path, newPath)
+    }
+    setIsRenaming(false)
+  }
+
+  function handleCancelRename() {
+    setIsRenaming(false)
+    setNewName(node.name)
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    e.stopPropagation()
+    if (e.key === 'Enter') {
+      handleConfirmRename()
+    } else if (e.key === 'Escape') {
+      handleCancelRename()
+    }
   }
 
   function handleDragStart(e: React.DragEvent) {
@@ -160,19 +196,36 @@ function NoteNode({ node, depth }: { node: TreeNode; depth: number }) {
     <div
       className={`tree-row tree-note-row ${node.path === activePath ? 'active' : ''}`}
       style={{ paddingLeft: `${depth * 14 + 24}px` }}
-      onClick={() => openTab(node.path)}
-      draggable
+      onClick={() => !isRenaming && openTab(node.path)}
+      draggable={!isRenaming}
       onDragStart={handleDragStart}
     >
-      <span className="tree-note-name">
-        {node.name}
-        {note?.dirty && <span className="dirty-dot" title={t('sidebar.notSynced')} />}
-      </span>
-      <span className="tree-row-actions">
-        <button onClick={handleDelete} title={t('sidebar.delete')}>
-          <X size={14} strokeWidth={1.75} />
-        </button>
-      </span>
+      {isRenaming ? (
+        <input
+          className="inline-rename-input"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onBlur={handleConfirmRename}
+          onClick={(e) => e.stopPropagation()}
+          autoFocus
+        />
+      ) : (
+        <>
+          <span className="tree-note-name">
+            {node.name}
+            {note?.dirty && <span className="dirty-dot" title={t('sidebar.notSynced')} />}
+          </span>
+          <span className="tree-row-actions">
+            <button onClick={handleStartRename} title={t('sidebar.rename')}>
+              <Pen size={14} strokeWidth={1.75} />
+            </button>
+            <button onClick={handleDelete} title={t('sidebar.delete')}>
+              <X size={14} strokeWidth={1.75} />
+            </button>
+          </span>
+        </>
+      )}
     </div>
   )
 }
