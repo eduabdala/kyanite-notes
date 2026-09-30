@@ -79,10 +79,27 @@ Fluxo de **push** (`putFile`):
 
 O `sha` de cada nota é guardado localmente e usado como controle de concorrência otimista — sem ele, o GitHub rejeita updates em arquivos que já existem.
 
+### Resolução de conflitos
+
+`src/store/useConflictStore.ts` centraliza o estado do diálogo de conflito (`src/components/ConflictDialog.tsx`), reaproveitado nas duas direções de sync:
+
+- **Push** (`confirmOverwrite`): antes de sobrescrever uma nota existente, `pushNote`/`syncAll` buscam o conteúdo remoto atual e comparam o `sha`. Se o remoto mudou desde o último sync local e o conteúdo realmente diverge (`src/lib/diff.ts`, diff de linhas via LCS), mostra o diff e pergunta se o usuário quer sobrescrever ou cancelar o push daquela nota.
+- **Pull** (`confirmPullConflict`): ao puxar do GitHub, se uma nota local está `dirty` (mudança não enviada) e o remoto também mudou desde a última vez que essa nota foi sincronizada, e o conteúdo diverge de fato, mostra o diff e pergunta se mantém a versão local ou aceita a remota. Sem esse conflito real (ex: remoto não mudou, ou mudou mas o conteúdo é idêntico), a nota local dirty é preservada silenciosamente como antes.
+
+Isso ainda não é merge automático — a resolução é "tudo ou nada" por nota (mantém uma versão inteira, descarta a outra). Um merge de verdade exigiria diff em nível de texto com edição manual, o que fica como possível evolução futura.
+
+### Sync automático
+
+Além do pull manual (botão na topbar), o `App.tsx` dispara `pullFromGitHub()` automaticamente:
+
+- Ao carregar o app (se já há uma conexão GitHub salva)
+- Sempre que a aba volta a ficar visível (`document.visibilitychange`), cobrindo o caso comum de trocar de aba/app e voltar
+
+Não há polling contínuo em background — isso reduziria a cota de 5000 requisições/hora por token autenticado sem necessidade real, já que o pull ao focar a aba já cobre a maioria dos casos de uso (o cenário raro é dois dispositivos editando a mesma nota ao mesmo tempo com a aba sempre em foco nos dois).
+
 ### Limitações conhecidas
 
-- **Sem merge de conflitos**: se a mesma nota for editada em dois lugares (ex: outro cliente também sincronizado) entre um pull e um push, o último push sobrescreve o remoto. O `sha` desatualizado faria o GitHub rejeitar a escrita nesse caso, mas hoje não há fluxo de resolução — o erro só aparece no `syncStatus`.
-- **Sync manual**: não há polling ou webhook, o usuário decide quando fazer pull/push (botões na topbar, ou `Ctrl+S` para push da nota atual).
+- **Sem merge de conflitos**: a resolução de conflito (acima) é por nota inteira, não por trecho — não há combinação automática de edições dos dois lados.
 - **Rate limit da API REST do GitHub**: 5000 requisições/hora por token autenticado. Repos muito grandes (centenas de notas) fazem várias chamadas no pull (uma por arquivo).
 
 ## Editor (CodeMirror 6)
@@ -119,6 +136,14 @@ No preview (`src/lib/markdown.ts`), `![[arquivo]]` é resolvido para uma `<img>`
 - Anexos não têm estado `dirty`/offline: diferente das notas (que sempre salvam no `localStorage` primeiro), o upload de um anexo depende de estar conectado ao GitHub. Isso evita estourar o limite de ~5-10MB do `localStorage` guardando imagens em base64 localmente.
 - A API REST do GitHub tem um limite de ~100MB por arquivo (e não é ideal para arquivos grandes de qualquer forma); não há validação de tamanho máximo no upload hoje.
 - Sem deduplicação: colar a mesma imagem duas vezes cria dois arquivos distintos em `_attachments/` (nomes únicos por timestamp).
+
+## Uso do repositório
+
+A aba "Perfil" das configurações mostra quanto espaço as notas e anexos já ocupam no repositório, como percentual de um limite de referência de 10GB (`src/lib/bytes.ts`, `REPO_USAGE_LIMIT_BYTES`) — o GitHub não impõe um limite real de tamanho para repositórios privados, então esse valor é só uma referência visual, não um teto de fato.
+
+O cálculo usa `GitHubClient.getRepoUsageBytes()`, que soma o campo `size` de cada blob retornado pela árvore git (`git.getTree` com `recursive: true`) — o mesmo endpoint já usado por `listVaultFiles`. Isso evita ter que baixar o conteúdo de cada arquivo só para medir tamanho: o Git já guarda o tamanho de cada blob na própria árvore.
+
+`refreshRepoUsage()` no `useVaultStore` é chamado após qualquer operação que muda o conteúdo remoto (pull, push, upload de anexo) e ao conectar um repositório, mantendo o número razoavelmente atualizado sem precisar de uma chamada dedicada a cada render.
 
 ## Segurança
 

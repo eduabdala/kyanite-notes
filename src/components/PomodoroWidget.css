@@ -1,0 +1,356 @@
+.pomodoro-widget {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: var(--bg-primary);
+}
+
+/* alerta visual ao fim de uma fase: pulsa o contorno por alguns segundos */
+@keyframes pomodoro-flash {
+  0%, 100% {
+    border-color: var(--border-color);
+    box-shadow: 0 0 0 0 transparent;
+  }
+  50% {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+}
+
+.pomodoro-widget.finished {
+  animation: pomodoro-flash 0.8s ease-in-out 4;
+}
+
+.pomodoro-ring-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.pomodoro-ring-track {
+  stroke: var(--border-color);
+}
+
+.pomodoro-ring-fill {
+  stroke: var(--accent);
+  transition: stroke-dashoffset 0.5s linear;
+}
+
+.pomodoro-widget.phase-break .pomodoro-ring-fill {
+  stroke: var(--text-secondary);
+}
+
+/* pontinho central que indica a fase (foco = accent, pausa = cinza) */
+.pomodoro-ring-dot {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.pomodoro-widget.phase-break .pomodoro-ring-dot {
+  background: var(--text-secondary);
+}
+
+.pomodoro-widget-clock {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.5px;
+  min-width: 40px;
+  text-align: center;
+  background: transparent;
+  border: none;
+  padding: 2px 4px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.pomodoro-widget-clock:hover {
+  background: var(--bg-hover);
+}
+
+.pomodoro-mini-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.pomodoro-mini-btn:hover {
+  background: var(--bg-hover);
+}
+
+.pomodoro-mini-btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.pomodoro-mini-btn.primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+@media (max-width: 768px) {
+  /* no mobile, esconde o relógio textual para caber; o anel já indica o progresso */
+  .pomodoro-widget-clock {
+    display: none;
+  }
+}
+
+/* balão (popover) que desce do widget com uma pontinha apontando pra ele */
+.pomodoro-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 260px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.3);
+  padding: 12px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pomodoro-panel-arrow {
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 11px;
+  height: 11px;
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border-color);
+  border-top: 1px solid var(--border-color);
+}
+
+.pomodoro-panel-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pomodoro-panel-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.pomodoro-note-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 7px;
+  padding: 5px 8px;
+  color: var(--text-secondary);
+}
+
+.pomodoro-panel-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+}
+
+.pomodoro-panel-input:focus {
+  outline: none;
+}
+
+.pomodoro-panel-durations {
+  flex-direction: row;
+  gap: 10px;
+}
+
+.pomodoro-duration {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pomodoro-panel-number {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 7px;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  padding: 5px 7px;
+}
+
+.pomodoro-panel-number:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.pomodoro-metrics {
+  display: flex;
+  gap: 10px;
+}
+
+.pomodoro-metric {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px 4px;
+}
+
+.pomodoro-metric-value {
+  font-family: var(--font-mono);
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.pomodoro-metric-label {
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+}
+
+.pomodoro-top-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pomodoro-top-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.8rem;
+}
+
+.pomodoro-top-name {
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pomodoro-top-minutes {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.pomodoro-panel-empty {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.pomodoro-card-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-primary);
+  border: 1px solid var(--accent);
+  border-radius: 7px;
+  padding: 5px 8px;
+  color: var(--accent);
+}
+
+.pomodoro-card-chip-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pomodoro-card-chip-clear {
+  display: inline-flex;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+}
+
+.pomodoro-card-chip-clear:hover {
+  background: var(--bg-hover);
+  color: var(--danger);
+}
+
+/* mini gráfico de linha (foco por dia) */
+.pomodoro-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.pomodoro-chart-axis {
+  stroke: var(--border-color);
+  stroke-width: 1;
+}
+
+.pomodoro-chart-area {
+  fill: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.pomodoro-chart-line {
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.pomodoro-chart-dot {
+  fill: var(--accent);
+}
+
+.pomodoro-chart-label {
+  fill: var(--text-secondary);
+  font-size: 8px;
+  font-family: var(--font-sans);
+}

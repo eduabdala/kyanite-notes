@@ -15,6 +15,7 @@ interface PreviewProps {
 
 export function Preview({ content, onScroll, scrollToFraction }: PreviewProps) {
   const notes = useVaultStore((s) => s.notes)
+  const createNote = useVaultStore((s) => s.createNote)
   const openTab = useTabsStore((s) => s.openTab)
   const preset = useThemeStore((s) => s.preset)
   const { mode } = splitPreset(preset)
@@ -80,8 +81,16 @@ export function Preview({ content, onScroll, scrollToFraction }: PreviewProps) {
     if (!link) return
 
     const name = link.dataset.noteName
+    if (!name) return
+
     const note = notes.find((n) => n.name === name)
-    if (note) openTab(note.path)
+    if (note) {
+      openTab(note.path)
+    } else {
+      // wikilink para uma nota que ainda não existe: cria automaticamente na raiz,
+      // igual ao comportamento do Obsidian ao clicar num link quebrado
+      createNote(name)
+    }
   }
 
   function handleScroll() {

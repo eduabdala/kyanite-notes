@@ -6,12 +6,14 @@ import { Sidebar } from './components/Sidebar'
 import { TabBar } from './components/TabBar'
 import { Editor } from './components/Editor'
 import { Preview } from './components/Preview'
+import { KanbanBoard } from './components/KanbanBoard'
 import { BacklinksPanel } from './components/BacklinksPanel'
 import { ResizeHandle } from './components/ResizeHandle'
 import { ConfirmDialog } from './components/ConfirmDialog'
-import { PushDiffDialog } from './components/PushDiffDialog'
+import { ConflictDialog } from './components/ConflictDialog'
 import { useVaultStore } from './store/useVaultStore'
 import { useTabsStore } from './store/useTabsStore'
+import { useUiStore } from './store/useUiStore'
 
 type ViewMode = 'edit' | 'preview' | 'split'
 
@@ -38,7 +40,11 @@ function App() {
   const githubConfig = useVaultStore((s) => s.githubConfig)
   const pullFromGitHub = useVaultStore((s) => s.pullFromGitHub)
   const pushNote = useVaultStore((s) => s.pushNote)
+  const kanbanEnabled = useVaultStore((s) => s.isPluginEnabled('kanban'))
+  const requestedViewMode = useUiStore((s) => s.requestedViewMode)
+  const clearRequestedViewMode = useUiStore((s) => s.clearRequestedViewMode)
   const [viewMode, setViewMode] = useState<ViewMode>('edit')
+  const [kanbanOpen, setKanbanOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'
   )
@@ -90,6 +96,18 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // sync automático ao voltar para a aba (ex: usuário trocou de app/aba e voltou), para reduzir
+  // a chance de divergência acumulada sem precisar de polling constante em background
+  useEffect(() => {
+    if (!githubConfig) return
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') pullFromGitHub()
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [githubConfig, pullFromGitHub])
+
   // captura Ctrl+S / Cmd+S em qualquer lugar da página, não só dentro do editor,
   // para nunca deixar o browser abrir o diálogo nativo de "salvar página"
   useEffect(() => {
@@ -105,6 +123,18 @@ function App() {
 
   const activeNote = notes.find((n) => n.path === activePath)
 
+  // se o plugin kanban for desativado enquanto o quadro está aberto, fecha o quadro
+  useEffect(() => {
+    if (!kanbanEnabled && kanbanOpen) setKanbanOpen(false)
+  }, [kanbanEnabled, kanbanOpen])
+
+  // atalho de plugins da TopBar: abre o quadro Kanban (view própria, à parte das notas)
+  useEffect(() => {
+    if (!requestedViewMode) return
+    if (requestedViewMode === 'board' && kanbanEnabled) setKanbanOpen(true)
+    clearRequestedViewMode()
+  }, [requestedViewMode, kanbanEnabled, clearRequestedViewMode])
+
   // no mobile, trocar de nota fecha o drawer da sidebar para revelar o editor
   useEffect(() => {
     setMobileSidebarOpen(false)
@@ -114,6 +144,11 @@ function App() {
     <div className="app-layout">
       <TopBar onOpenSidebar={() => setMobileSidebarOpen(true)} />
       <div className="app-body">
+        {kanbanOpen && (
+          <div className="kanban-overlay">
+            <KanbanBoard onClose={() => setKanbanOpen(false)} />
+          </div>
+        )}
         {sidebarCollapsed ? (
           <button
             className="sidebar-expand-btn"
@@ -171,7 +206,7 @@ function App() {
                     path={activeNote.path}
                     content={activeNote.content}
                     onChange={(content) => updateNoteContent(activeNote.path, content)}
-                    getNoteNames={() => notes.map((n) => n.name)}
+                    getNoteNames={() => Array.from(new Set(notes.map((n) => n.name)))}
                     onScroll={viewMode === 'split' ? handleEditorScroll : undefined}
                     scrollToFraction={
                       viewMode === 'split' && syncFraction?.from === 'preview'
@@ -227,7 +262,7 @@ function App() {
         )}
       </div>
       <ConfirmDialog />
-      <PushDiffDialog />
+      <ConflictDialog />
     </div>
   )
 }

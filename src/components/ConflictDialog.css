@@ -1,10 +1,10 @@
-.push-diff-content {
+.conflict-dialog-content {
   width: 640px;
   max-width: 90vw;
   max-height: 80vh;
 }
 
-.push-diff-lines {
+.conflict-diff-lines {
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: 6px;
@@ -17,37 +17,37 @@
   line-height: 1.5;
 }
 
-.push-diff-line {
+.conflict-diff-line {
   display: flex;
   padding: 0 12px;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
-.push-diff-marker {
+.conflict-diff-marker {
   flex-shrink: 0;
   width: 16px;
   opacity: 0.7;
   user-select: none;
 }
 
-.push-diff-text {
+.conflict-diff-text {
   flex: 1;
   color: var(--text-primary);
 }
 
-.push-diff-added {
+.conflict-diff-added {
   background: rgba(63, 185, 80, 0.15);
 }
 
-.push-diff-added .push-diff-marker {
+.conflict-diff-added .conflict-diff-marker {
   color: #3fb950;
 }
 
-.push-diff-removed {
+.conflict-diff-removed {
   background: rgba(229, 72, 77, 0.15);
 }
 
-.push-diff-removed .push-diff-marker {
+.conflict-diff-removed .conflict-diff-marker {
   color: var(--danger);
 }

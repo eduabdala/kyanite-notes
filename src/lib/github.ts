@@ -91,6 +91,20 @@ export class GitHubClient {
 
   /** Lista recursivamente todos os arquivos .md e marcadores de pasta (.folder) do repo */
   async listVaultFiles(): Promise<{ path: string; sha: string }[]> {
+    const tree = await this.getFullTree()
+    return tree
+      .filter((item) => item.path.endsWith('.md') || item.path.endsWith('/.folder'))
+      .map((item) => ({ path: item.path, sha: item.sha }))
+  }
+
+  /** Soma o tamanho (em bytes) de todos os arquivos do repo na branch atual, usando o `size`
+   * de cada blob já presente na árvore git (sem precisar baixar o conteúdo de cada arquivo). */
+  async getRepoUsageBytes(): Promise<number> {
+    const tree = await this.getFullTree()
+    return tree.reduce((total, item) => total + (item.size ?? 0), 0)
+  }
+
+  private async getFullTree(): Promise<{ path: string; sha: string; size: number }[]> {
     const { data: refData } = await this.octokit.git.getRef({
       owner: this.config.owner,
       repo: this.config.repo,
@@ -105,11 +119,8 @@ export class GitHubClient {
     })
 
     return tree.tree
-      .filter(
-        (item) =>
-          item.type === 'blob' && item.path && (item.path.endsWith('.md') || item.path.endsWith('/.folder'))
-      )
-      .map((item) => ({ path: item.path!, sha: item.sha! }))
+      .filter((item) => item.type === 'blob' && item.path && item.sha)
+      .map((item) => ({ path: item.path!, sha: item.sha!, size: item.size ?? 0 }))
   }
 
   async getFileContent(path: string): Promise<RemoteFile> {

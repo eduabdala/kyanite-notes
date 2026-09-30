@@ -14,6 +14,7 @@ Editor de notas estilo Obsidian, com wikilinks, backlinks e sincronização dire
 - Atalho `Ctrl+S` / `Cmd+S` para enviar a nota atual ao repositório
 - Tema claro, escuro ou seguindo o sistema operacional, com paleta azul inspirada na pedra kyanite
 - Interface em português e inglês
+- Uso do repositório (notas + anexos) exibido nas configurações, com percentual sobre um limite de referência de 10GB
 
 ## Rodando localmente
 
@@ -56,7 +57,7 @@ Ver [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) para detalhes sobre a estru
 
 ## Roadmap
 
-- [ ] Resolução de conflitos ao fazer pull com mudanças locais não sincronizadas
+- [x] Resolução de conflitos ao fazer pull com mudanças locais não sincronizadas (diff visual, escolher versão local ou remota)
 - [ ] Empacotamento desktop via Tauri
 - [ ] PWA (uso offline completo na versão web)
 - [ ] Grafo visual de notas (visualização interativa das conexões entre notas, estilo grafo do Obsidian)
