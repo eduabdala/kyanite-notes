@@ -32,7 +32,7 @@ import {
   parseCollection,
   serializeCollection,
   retargetNoteLinks,
-  clearNoteLinks,
+  //clearNoteLinks,
   type KanbanCollection,
 } from '../lib/kanban'
 import { useConflictStore } from './useConflictStore'
