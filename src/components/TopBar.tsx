@@ -6,6 +6,7 @@ import { useTabsStore } from '../store/useTabsStore'
 import { useUiStore } from '../store/useUiStore'
 import { usePomodoroStore } from '../store/usePomodoroStore'
 import { AppLogo } from './AppLogo'
+import { APP_VERSION } from '../lib/version'
 import { GitHubConnectModal } from './GitHubConnectModal'
 import { PomodoroWidget } from './PomodoroWidget'
 import './TopBar.css'
@@ -13,6 +14,8 @@ import './TopBar.css'
 interface TopBarProps {
   onOpenSidebar: () => void
 }
+
+const isBeta = APP_VERSION.includes('-beta')
 
 export function TopBar({ onOpenSidebar }: TopBarProps) {
   const { t } = useTranslation()
@@ -70,6 +73,7 @@ export function TopBar({ onOpenSidebar }: TopBarProps) {
         </button>
         <AppLogo size={20} />
         <span className="app-title">{t('app.title')}</span>
+        {isBeta && <span className="app-beta-tag">{t('app.betaTag')}</span>}
       </div>
 
       <div className="top-bar-center">

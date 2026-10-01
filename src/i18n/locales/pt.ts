@@ -2,6 +2,7 @@ export const pt = {
   translation: {
     app: {
       title: 'Kyanite',
+      betaTag: 'BETA',
       selectOrCreateNote: 'Selecione ou crie uma nota para começar',
     },
     viewToggle: {
