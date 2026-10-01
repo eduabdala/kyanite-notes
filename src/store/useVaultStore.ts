@@ -67,6 +67,8 @@ interface VaultState {
   pullFromGitHub: () => Promise<void>
   pushNote: (path: string) => Promise<void>
   syncAll: () => Promise<void>
+  /** pull seguido de push: usado pelo botão único de sync da TopBar */
+  syncNow: () => Promise<void>
 
   createNote: (name: string, folder?: string) => Note
   updateNoteContent: (path: string, content: string) => void
@@ -348,6 +350,14 @@ export const useVaultStore = create<VaultState>((set, get) => {
     } catch (err) {
       handleGitHubError(err, 'Erro ao sincronizar')
     }
+  },
+
+  syncNow: async () => {
+    // puxa primeiro (resolve conflitos com o remoto) e só depois envia o que ficou pendente;
+    // se o pull falhar (ex: sessão expirada), não tenta o push para não mascarar o erro original
+    await get().pullFromGitHub()
+    if (get().syncStatus === 'auth-error' || get().syncStatus === 'error') return
+    await get().syncAll()
   },
 
   createNote: (name, folder) => {

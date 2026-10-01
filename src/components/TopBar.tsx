@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Menu, Puzzle, LayoutGrid, Timer } from 'lucide-react'
+import { Menu, Puzzle, LayoutGrid, Timer, RefreshCw } from 'lucide-react'
 import { useVaultStore } from '../store/useVaultStore'
 import { useTabsStore } from '../store/useTabsStore'
 import { useUiStore } from '../store/useUiStore'
@@ -23,8 +23,7 @@ export function TopBar({ onOpenSidebar }: TopBarProps) {
   const syncStatus = useVaultStore((s) => s.syncStatus)
   const syncError = useVaultStore((s) => s.syncError)
   const notes = useVaultStore((s) => s.notes)
-  const syncAll = useVaultStore((s) => s.syncAll)
-  const pullFromGitHub = useVaultStore((s) => s.pullFromGitHub)
+  const syncNow = useVaultStore((s) => s.syncNow)
   const disconnectGitHub = useVaultStore((s) => s.disconnectGitHub)
 
   const kanbanEnabled = useVaultStore((s) => s.isPluginEnabled('kanban'))
@@ -159,14 +158,14 @@ export function TopBar({ onOpenSidebar }: TopBarProps) {
                 {t('topBar.reconnect')}
               </button>
             ) : (
-              <>
-                <button className="btn-topbar" onClick={() => pullFromGitHub()}>
-                  {t('topBar.pull')}
-                </button>
-                <button className="btn-topbar" onClick={() => syncAll()} disabled={dirtyCount === 0}>
-                  {t('topBar.push')}
-                </button>
-              </>
+              <button
+                className="icon-toggle-btn"
+                onClick={() => syncNow()}
+                disabled={syncStatus === 'syncing'}
+                title={t('topBar.sync')}
+              >
+                <RefreshCw size={16} strokeWidth={1.75} className={syncStatus === 'syncing' ? 'spin' : ''} />
+              </button>
             )}
             <button className="btn-topbar" onClick={disconnectGitHub}>
               {t('topBar.disconnect')}
