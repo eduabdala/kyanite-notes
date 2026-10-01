@@ -613,6 +613,12 @@
   flex-shrink: 0;
 }
 
+/* alternativa ao drag-and-drop em touch (ver KanbanBoard.tsx): escondido no desktop,
+ * onde o drag-and-drop nativo já funciona bem */
+.kanban-move-mobile-only {
+  display: none;
+}
+
 /* ===== densidade / modo compacto ===== */
 /* No modo compacto, os botões de ação só aparecem quando o cartão está em hover. */
 .density-compact .kanban-card-actions {
@@ -697,4 +703,28 @@
 .kanban-filter-clear:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
+}
+
+/* ===== mobile: consulta e edições pontuais, sem drag-and-drop (não funciona em touch) ===== */
+@media (max-width: 768px) {
+  /* colunas mais estreitas para caber melhor numa tela pequena, mantendo o scroll horizontal */
+  .kanban-column,
+  .kanban-column-add {
+    flex: 0 0 240px;
+  }
+
+  /* sem hover em touch: os botões de ação (incluindo mover entre colunas) ficam sempre visíveis */
+  .kanban-card-actions,
+  .density-compact .kanban-card-actions {
+    opacity: 1;
+  }
+
+  .kanban-move-mobile-only {
+    display: inline-flex;
+  }
+
+  /* GripVertical sugere "arraste" — remove a sugestão visual já que o drag não funciona em touch */
+  .kanban-card-grip {
+    display: none;
+  }
 }

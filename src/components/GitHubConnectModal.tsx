@@ -30,11 +30,16 @@ export function GitHubConnectModal({ onClose }: Props) {
   const { t } = useTranslation()
   const connectGitHub = useVaultStore((s) => s.connectGitHub)
   const pullFromGitHub = useVaultStore((s) => s.pullFromGitHub)
+  const existingConfig = useVaultStore((s) => s.githubConfig)
+
+  // reconexão: já temos owner/repo/branch de uma conexão anterior (token expirado/revogado),
+  // então pula direto para pedir só o novo token, sem reselecionar o repositório
+  const isReauth = Boolean(existingConfig)
 
   const [showManual, setShowManual] = useState(!oauthAvailable)
-  const [owner, setOwner] = useState('')
-  const [repo, setRepo] = useState('')
-  const [branch, setBranch] = useState('main')
+  const [owner, setOwner] = useState(existingConfig?.owner ?? '')
+  const [repo, setRepo] = useState(existingConfig?.repo ?? '')
+  const [branch, setBranch] = useState(existingConfig?.branch ?? 'main')
   const [token, setToken] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -79,6 +84,20 @@ export function GitHubConnectModal({ onClose }: Props) {
         setError(buildErrorMessage(result.error))
         return
       }
+
+      // reconexão: já sabemos o repo, então conecta direto com o novo token sem pedir pra escolher de novo
+      if (existingConfig) {
+        const connectResult = await connectGitHub({ ...existingConfig, token: result.token })
+        setLoading(false)
+        if (!connectResult.ok) {
+          setError(buildErrorMessage(connectResult.error))
+          return
+        }
+        await pullFromGitHub()
+        onClose()
+        return
+      }
+
       setOauthToken(result.token)
       const userRepos = await listUserRepos(result.token).catch(() => null)
       setLoading(false)
@@ -142,7 +161,7 @@ export function GitHubConnectModal({ onClose }: Props) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <h3>{t('githubModal.title')}</h3>
+        <h3>{isReauth ? t('githubModal.reauthTitle') : t('githubModal.title')}</h3>
 
         {repos ? (
           <>
@@ -170,7 +189,9 @@ export function GitHubConnectModal({ onClose }: Props) {
           <>
             {oauthAvailable && !showManual && (
               <>
-                <p className="modal-hint">{t('githubModal.oauthHint')}</p>
+                <p className="modal-hint">
+                  {isReauth ? t('githubModal.reauthOauthHint') : t('githubModal.oauthHint')}
+                </p>
                 <button className="btn-primary btn-oauth" onClick={startOAuthLogin} disabled={loading}>
                   {loading ? t('githubModal.connecting') : t('githubModal.loginWithGitHub')}
                 </button>
@@ -189,18 +210,22 @@ export function GitHubConnectModal({ onClose }: Props) {
             {showManual && (
               <>
                 <p className="modal-hint">
-                  <Trans
-                    i18nKey="githubModal.hint"
-                    components={{
-                      tokenLink: (
-                        <a
-                          href="https://github.com/settings/tokens?type=beta"
-                          target="_blank"
-                          rel="noreferrer"
-                        />
-                      ),
-                    }}
-                  />
+                  {isReauth ? (
+                    t('githubModal.reauthHint')
+                  ) : (
+                    <Trans
+                      i18nKey="githubModal.hint"
+                      components={{
+                        tokenLink: (
+                          <a
+                            href="https://github.com/settings/tokens?type=beta"
+                            target="_blank"
+                            rel="noreferrer"
+                          />
+                        ),
+                      }}
+                    />
+                  )}
                 </p>
 
                 <label>{t('githubModal.ownerLabel')}</label>
@@ -208,6 +233,7 @@ export function GitHubConnectModal({ onClose }: Props) {
                   value={owner}
                   onChange={(e) => setOwner(e.target.value)}
                   placeholder={t('githubModal.ownerPlaceholder')}
+                  readOnly={isReauth}
                 />
 
                 <label>{t('githubModal.repoLabel')}</label>
@@ -215,10 +241,16 @@ export function GitHubConnectModal({ onClose }: Props) {
                   value={repo}
                   onChange={(e) => setRepo(e.target.value)}
                   placeholder={t('githubModal.repoPlaceholder')}
+                  readOnly={isReauth}
                 />
 
                 <label>{t('githubModal.branchLabel')}</label>
-                <input value={branch} onChange={(e) => setBranch(e.target.value)} placeholder="main" />
+                <input
+                  value={branch}
+                  onChange={(e) => setBranch(e.target.value)}
+                  placeholder="main"
+                  readOnly={isReauth}
+                />
 
                 <label>{t('githubModal.tokenLabel')}</label>
                 <input
@@ -226,6 +258,7 @@ export function GitHubConnectModal({ onClose }: Props) {
                   value={token}
                   onChange={(e) => setToken(e.target.value)}
                   placeholder="ghp_..."
+                  autoFocus
                 />
 
                 {error && <p className="modal-error">{error}</p>}

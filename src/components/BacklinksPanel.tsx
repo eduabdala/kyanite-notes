@@ -1,9 +1,15 @@
 import { useTranslation } from 'react-i18next'
+import { PanelRightClose } from 'lucide-react'
 import { useVaultStore } from '../store/useVaultStore'
 import { useTabsStore } from '../store/useTabsStore'
 import './BacklinksPanel.css'
 
-export function BacklinksPanel() {
+interface BacklinksPanelProps {
+  /** opcional: quando informado, mostra um botão para recolher o painel (não exibido no drawer mobile) */
+  onCollapse?: () => void
+}
+
+export function BacklinksPanel({ onCollapse }: BacklinksPanelProps) {
   const { t } = useTranslation()
   const activePath = useTabsStore((s) => s.activePath)
   const openTab = useTabsStore((s) => s.openTab)
@@ -18,6 +24,13 @@ export function BacklinksPanel() {
 
   return (
     <aside className="backlinks-panel">
+      {onCollapse && (
+        <div className="backlinks-header">
+          <button className="backlinks-collapse-btn" onClick={onCollapse} title={t('backlinks.collapse')}>
+            <PanelRightClose size={16} strokeWidth={1.75} />
+          </button>
+        </div>
+      )}
       <div className="backlinks-section">
         <h4>{t('backlinks.links', { count: outgoingPaths.length })}</h4>
         {outgoingPaths.length === 0 && <p className="backlinks-empty">{t('backlinks.noLinks')}</p>}

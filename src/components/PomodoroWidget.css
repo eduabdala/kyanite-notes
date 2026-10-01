@@ -115,8 +115,9 @@
 }
 
 @media (max-width: 768px) {
-  /* no mobile, esconde o relógio textual para caber; o anel já indica o progresso */
-  .pomodoro-widget-clock {
+  /* pomodoro é uma ferramenta de sessão de foco contínua, fora do escopo de "consulta
+   * rápida" do mobile: o widget sai da TopBar por completo (ver TopBar.tsx/.css) */
+  .pomodoro-widget {
     display: none;
   }
 }

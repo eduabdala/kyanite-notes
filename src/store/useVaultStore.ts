@@ -11,7 +11,7 @@ import {
   buildFolderTree,
   FOLDER_MARKER,
 } from '../lib/vault'
-import { buildLinkGraph } from '../lib/wikilinks'
+import { buildLinkGraph, renameLinksAcrossNotes } from '../lib/wikilinks'
 import { withCreatedDate } from '../lib/frontmatter'
 import { buildTagTree } from '../lib/tags'
 import { diffLines, isDiffEmpty } from '../lib/diff'
@@ -39,7 +39,16 @@ import { useConflictStore } from './useConflictStore'
 import { useTabsStore } from './useTabsStore'
 import type { GitHubConfig, LinkGraph, Note, TreeNode } from '../lib/types'
 
-type SyncStatus = 'idle' | 'syncing' | 'error'
+type SyncStatus = 'idle' | 'syncing' | 'error' | 'auth-error'
+
+/** Detecta se um erro vindo da API do GitHub é de autenticação (token inválido/expirado/revogado),
+ * para diferenciar de outros erros de sync e guiar o usuário a reconectar sem perder owner/repo/branch. */
+function isAuthError(err: unknown): boolean {
+  const status = (err as { status?: number } | null)?.status
+  if (status === 401) return true
+  const message = err instanceof Error ? err.message.toLowerCase() : ''
+  return message.includes('bad credentials') || message.includes('requires authentication')
+}
 
 interface VaultState {
   notes: Note[]
@@ -66,6 +75,7 @@ interface VaultState {
 
   createFolder: (name: string, parent?: string) => void
   deleteFolder: (path: string) => Promise<void>
+  renameFolder: (path: string, newName: string) => Promise<void>
   moveNote: (path: string, targetFolder: string) => Promise<void>
   getFolderTree: () => TreeNode[]
   getTagTree: () => TreeNode[]
@@ -127,7 +137,20 @@ async function confirmPushIfRemoteChanged(client: GitHubClient, note: Note): Pro
   }
 }
 
-export const useVaultStore = create<VaultState>((set, get) => ({
+export const useVaultStore = create<VaultState>((set, get) => {
+  /** Centraliza o tratamento de erros de chamadas ao GitHub: diferencia erro de autenticação
+   * (token inválido/expirado/revogado) de outros erros, para a UI poder guiar o usuário a
+   * reconectar sem precisar escolher o repositório novamente (owner/repo/branch são mantidos). */
+  function handleGitHubError(err: unknown, fallbackMessage: string) {
+    const message = err instanceof Error ? err.message : fallbackMessage
+    if (isAuthError(err)) {
+      set({ syncStatus: 'auth-error', syncError: message })
+    } else {
+      set({ syncStatus: 'error', syncError: message })
+    }
+  }
+
+  return {
   notes: loadLocalNotes(),
   emptyFolders: loadLocalFolders(),
   linkGraph: recomputeGraph(loadLocalNotes()),
@@ -153,7 +176,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     const result = await client.verifyAccess()
     if (result.ok) {
       saveGitHubConfig(config)
-      set({ githubConfig: config })
+      set({ githubConfig: config, syncStatus: 'idle', syncError: null })
       get().refreshRepoUsage()
     }
     return result
@@ -260,8 +283,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
       })
       get().refreshRepoUsage()
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erro ao sincronizar'
-      set({ syncStatus: 'error', syncError: message })
+      handleGitHubError(err, 'Erro ao sincronizar')
     }
   },
 
@@ -285,8 +307,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
       set({ notes: updated, syncStatus: 'idle' })
       get().refreshRepoUsage()
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erro ao enviar nota'
-      set({ syncStatus: 'error', syncError: message })
+      handleGitHubError(err, 'Erro ao enviar nota')
     }
   },
 
@@ -325,8 +346,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
       set({ notes: current, syncStatus: 'idle' })
       get().refreshRepoUsage()
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erro ao sincronizar'
-      set({ syncStatus: 'error', syncError: message })
+      handleGitHubError(err, 'Erro ao sincronizar')
     }
   },
 
@@ -364,8 +384,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
         const client = new GitHubClient(githubConfig)
         await client.deleteFile(path, note.sha)
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Erro ao excluir no GitHub'
-        set({ syncStatus: 'error', syncError: message })
+        handleGitHubError(err, 'Erro ao excluir no GitHub')
         return
       }
     }
@@ -380,6 +399,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     const { notes, githubConfig } = get()
     const note = notes.find((n) => n.path === path)
     if (!note) return
+    const oldName = note.name
     const folder = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : ''
     const newPath = nameToPath(newName, folder)
 
@@ -389,9 +409,12 @@ export const useVaultStore = create<VaultState>((set, get) => ({
         // GitHub não tem "renomear": cria no novo path e remove o antigo
         const sha = await client.putFile(newPath, note.content)
         await client.deleteFile(path, note.sha)
-        const updated = notes.map((n) =>
+        const renamed = notes.map((n) =>
           n.path === path ? { ...n, path: newPath, name: newName, sha, dirty: false } : n
         )
+        // atualiza [[nome-antigo]] -> [[nome-novo]] em quem linkava para essa nota, para não
+        // quebrar backlinks; essas notas ficam dirty e são enviadas no próximo push/sync
+        const updated = renameLinksAcrossNotes(renamed, oldName, newName)
         saveLocalNotes(updated)
         set({ notes: updated, linkGraph: recomputeGraph(updated) })
         useTabsStore.getState().renameTab(path, newPath)
@@ -401,17 +424,17 @@ export const useVaultStore = create<VaultState>((set, get) => ({
         }
         return
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Erro ao renomear nota no GitHub'
-        set({ syncStatus: 'error', syncError: message })
+        handleGitHubError(err, 'Erro ao renomear nota no GitHub')
         return
       }
     }
 
-    const updated = notes.map((n) =>
+    const renamed = notes.map((n) =>
       n.path === path
         ? { ...n, path: newPath, name: newName, dirty: true, sha: undefined }
         : n
     )
+    const updated = renameLinksAcrossNotes(renamed, oldName, newName)
     saveLocalNotes(updated)
     set({ notes: updated, linkGraph: recomputeGraph(updated) })
     useTabsStore.getState().renameTab(path, newPath)
@@ -433,8 +456,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     if (githubConfig) {
       const client = new GitHubClient(githubConfig)
       client.putFile(`${path}/${FOLDER_MARKER}`, '').catch((err) => {
-        const message = err instanceof Error ? err.message : 'Erro ao criar pasta no GitHub'
-        set({ syncStatus: 'error', syncError: message })
+        handleGitHubError(err, 'Erro ao criar pasta no GitHub')
       })
     }
   },
@@ -457,8 +479,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
         const marker = files.find((f) => f.path === markerPath)
         if (marker) await client.deleteFile(markerPath, marker.sha)
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Erro ao excluir pasta no GitHub'
-        set({ syncStatus: 'error', syncError: message })
+        handleGitHubError(err, 'Erro ao excluir pasta no GitHub')
         return
       }
     }
@@ -474,6 +495,62 @@ export const useVaultStore = create<VaultState>((set, get) => ({
       linkGraph: recomputeGraph(remainingNotes),
     })
     notesInside.forEach((n) => useTabsStore.getState().closeTab(n.path))
+  },
+
+  renameFolder: async (path, newName) => {
+    const { notes, emptyFolders, githubConfig } = get()
+    const name = newName.trim()
+    if (!name) return
+
+    const parentPath = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : ''
+    const newPath = joinPath(parentPath, name)
+    if (newPath === path) return
+
+    const prefix = `${path}/`
+    const notesInside = notes.filter((n) => n.path.startsWith(prefix))
+    const foldersInside = emptyFolders.filter((f) => f === path || f.startsWith(prefix))
+
+    const renamed = (p: string) => newPath + p.slice(path.length)
+
+    if (githubConfig) {
+      try {
+        const client = new GitHubClient(githubConfig)
+        // GitHub não tem "renomear pasta": recria cada arquivo no novo path e remove o antigo
+        for (const note of notesInside) {
+          if (!note.sha) continue
+          await client.putFile(renamed(note.path), note.content)
+          await client.deleteFile(note.path, note.sha)
+        }
+        const files = await client.listVaultFiles()
+        for (const folder of foldersInside) {
+          const markerPath = `${folder}/${FOLDER_MARKER}`
+          const marker = files.find((f) => f.path === markerPath)
+          if (marker) {
+            await client.putFile(renamed(folder) + `/${FOLDER_MARKER}`, '')
+            await client.deleteFile(markerPath, marker.sha)
+          }
+        }
+      } catch (err) {
+        handleGitHubError(err, 'Erro ao renomear pasta no GitHub')
+        return
+      }
+    }
+
+    const updatedNotes = notes.map((n) =>
+      n.path.startsWith(prefix)
+        ? { ...n, path: renamed(n.path), dirty: true, sha: undefined }
+        : n
+    )
+    const updatedFolders = emptyFolders.map((f) => (f === path || f.startsWith(prefix) ? renamed(f) : f))
+
+    saveLocalNotes(updatedNotes)
+    saveLocalFolders(updatedFolders)
+    set({
+      notes: updatedNotes,
+      emptyFolders: updatedFolders,
+      linkGraph: recomputeGraph(updatedNotes),
+    })
+    notesInside.forEach((n) => useTabsStore.getState().renameTab(n.path, renamed(n.path)))
   },
 
   moveNote: async (path, targetFolder) => {
@@ -502,8 +579,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
         }
         return
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Erro ao mover nota no GitHub'
-        set({ syncStatus: 'error', syncError: message })
+        handleGitHubError(err, 'Erro ao mover nota no GitHub')
         return
       }
     }
@@ -623,8 +699,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
       }
       await client.putFile(PLUGIN_CONFIG_PATH, serializePluginConfig(next), sha)
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erro ao salvar configuração de plugins'
-      set({ syncStatus: 'error', syncError: message })
+      handleGitHubError(err, 'Erro ao salvar configuração de plugins')
     }
   },
 
@@ -646,11 +721,11 @@ export const useVaultStore = create<VaultState>((set, get) => ({
       }
       await client.putFile(KANBAN_BOARD_PATH, serializeCollection(collection), sha)
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erro ao salvar os quadros Kanban'
-      set({ syncStatus: 'error', syncError: message })
+      handleGitHubError(err, 'Erro ao salvar os quadros Kanban')
     }
   },
-}))
+  }
+})
 
 function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
