@@ -38,6 +38,8 @@ function App() {
   const activePath = useTabsStore((s) => s.activePath)
   const notes = useVaultStore((s) => s.notes)
   const updateNoteContent = useVaultStore((s) => s.updateNoteContent)
+  const createNote = useVaultStore((s) => s.createNote)
+  const openTab = useTabsStore((s) => s.openTab)
   const githubConfig = useVaultStore((s) => s.githubConfig)
   const pullFromGitHub = useVaultStore((s) => s.pullFromGitHub)
   const pushNote = useVaultStore((s) => s.pushNote)
@@ -98,6 +100,14 @@ function App() {
   function handlePreviewScroll(fraction: number) {
     if (rafRef.current) cancelAnimationFrame(rafRef.current)
     rafRef.current = requestAnimationFrame(() => setSyncFraction({ from: 'preview', value: fraction }))
+  }
+
+  // Ctrl/Cmd+click num [[wikilink]] no live preview do editor: abre a nota, ou cria se não existir
+  // (mesmo comportamento de clicar num wikilink no modo Preview)
+  function handleOpenWikilink(name: string) {
+    const note = notes.find((n) => n.name === name)
+    if (note) openTab(note.path)
+    else createNote(name)
   }
 
   useEffect(() => {
@@ -222,6 +232,7 @@ function App() {
                         ? syncFraction.value
                         : undefined
                     }
+                    onOpenWikilink={handleOpenWikilink}
                   />
                 )}
                 {(viewMode === 'preview' || viewMode === 'split') && (
