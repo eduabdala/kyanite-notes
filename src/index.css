@@ -312,6 +312,9 @@ button {
 }
 
 .view-toggle button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: transparent;
   border: 1px solid var(--border-color);
   color: var(--text-secondary);
@@ -468,11 +471,17 @@ button {
 
   .view-toggle {
     padding: 8px 12px;
+    gap: 3px;
   }
 
   .view-toggle button {
     flex: 1;
-    padding: 8px 6px;
+    justify-content: center;
+    padding: 8px 4px;
+  }
+
+  .view-toggle button span {
+    display: none;
   }
 
   .view-panels.split {

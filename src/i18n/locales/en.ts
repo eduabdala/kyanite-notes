@@ -6,11 +6,17 @@ export const en = {
     },
     viewToggle: {
       edit: 'Edit',
+      editHint: 'Plain markdown text',
+      live: 'Live Preview',
+      liveHint: 'Formatted inline, editable (Obsidian-style)',
       split: 'Split',
+      splitHint: 'Edit and Preview side by side',
       preview: 'Preview',
+      previewHint: 'Read-only rendered view',
     },
     editor: {
       attachImage: 'Add image',
+      emptyPlaceholder: 'Click to start writing...',
     },
     topBar: {
       theme: 'Theme',

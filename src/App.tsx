@@ -1,11 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link2, PanelLeftOpen, PanelRightOpen, X } from 'lucide-react'
+import {
+  Link2,
+  PanelLeftOpen,
+  PanelRightOpen,
+  X,
+  Pencil,
+  Sparkles,
+  Columns2,
+  BookOpen,
+} from 'lucide-react'
 import { TopBar } from './components/TopBar'
 import { Sidebar } from './components/Sidebar'
 import { TabBar } from './components/TabBar'
 import { Editor } from './components/Editor'
 import { Preview } from './components/Preview'
+import { BlockEditor } from './components/BlockEditor'
 import { KanbanBoard } from './components/KanbanBoard'
 import { BacklinksPanel } from './components/BacklinksPanel'
 import { ResizeHandle } from './components/ResizeHandle'
@@ -15,12 +25,20 @@ import { useVaultStore } from './store/useVaultStore'
 import { useTabsStore } from './store/useTabsStore'
 import { useUiStore } from './store/useUiStore'
 
-type ViewMode = 'edit' | 'preview' | 'split'
+type ViewMode = 'edit' | 'live' | 'preview' | 'split'
 
 const SIDEBAR_COLLAPSED_KEY = 'kyanite:sidebar-collapsed'
 const SIDEBAR_WIDTH_KEY = 'kyanite:sidebar-width'
 const BACKLINKS_WIDTH_KEY = 'kyanite:backlinks-width'
 const BACKLINKS_COLLAPSED_KEY = 'kyanite:backlinks-collapsed'
+const VIEW_MODE_KEY = 'kyanite:view-mode'
+
+const VIEW_MODES: ViewMode[] = ['edit', 'live', 'split', 'preview']
+
+function loadViewMode(): ViewMode {
+  const raw = localStorage.getItem(VIEW_MODE_KEY)
+  return raw && VIEW_MODES.includes(raw as ViewMode) ? (raw as ViewMode) : 'live'
+}
 
 const SIDEBAR_MIN = 200
 const SIDEBAR_MAX = 480
@@ -38,15 +56,18 @@ function App() {
   const activePath = useTabsStore((s) => s.activePath)
   const notes = useVaultStore((s) => s.notes)
   const updateNoteContent = useVaultStore((s) => s.updateNoteContent)
-  const createNote = useVaultStore((s) => s.createNote)
-  const openTab = useTabsStore((s) => s.openTab)
   const githubConfig = useVaultStore((s) => s.githubConfig)
   const pullFromGitHub = useVaultStore((s) => s.pullFromGitHub)
   const pushNote = useVaultStore((s) => s.pushNote)
   const kanbanEnabled = useVaultStore((s) => s.isPluginEnabled('kanban'))
   const requestedViewMode = useUiStore((s) => s.requestedViewMode)
   const clearRequestedViewMode = useUiStore((s) => s.clearRequestedViewMode)
-  const [viewMode, setViewMode] = useState<ViewMode>('edit')
+  const [viewMode, setViewModeState] = useState<ViewMode>(loadViewMode)
+
+  function setViewMode(mode: ViewMode) {
+    localStorage.setItem(VIEW_MODE_KEY, mode)
+    setViewModeState(mode)
+  }
   const [kanbanOpen, setKanbanOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'
@@ -100,14 +121,6 @@ function App() {
   function handlePreviewScroll(fraction: number) {
     if (rafRef.current) cancelAnimationFrame(rafRef.current)
     rafRef.current = requestAnimationFrame(() => setSyncFraction({ from: 'preview', value: fraction }))
-  }
-
-  // Ctrl/Cmd+click num [[wikilink]] no live preview do editor: abre a nota, ou cria se não existir
-  // (mesmo comportamento de clicar num wikilink no modo Preview)
-  function handleOpenWikilink(name: string) {
-    const note = notes.find((n) => n.name === name)
-    if (note) openTab(note.path)
-    else createNote(name)
   }
 
   useEffect(() => {
@@ -201,20 +214,34 @@ function App() {
                 <button
                   className={viewMode === 'edit' ? 'active' : ''}
                   onClick={() => setViewMode('edit')}
+                  title={t('viewToggle.editHint')}
                 >
-                  {t('viewToggle.edit')}
+                  <Pencil size={14} strokeWidth={1.75} />
+                  <span>{t('viewToggle.edit')}</span>
+                </button>
+                <button
+                  className={viewMode === 'live' ? 'active' : ''}
+                  onClick={() => setViewMode('live')}
+                  title={t('viewToggle.liveHint')}
+                >
+                  <Sparkles size={14} strokeWidth={1.75} />
+                  <span>{t('viewToggle.live')}</span>
                 </button>
                 <button
                   className={viewMode === 'split' ? 'active' : ''}
                   onClick={() => setViewMode('split')}
+                  title={t('viewToggle.splitHint')}
                 >
-                  {t('viewToggle.split')}
+                  <Columns2 size={14} strokeWidth={1.75} />
+                  <span>{t('viewToggle.split')}</span>
                 </button>
                 <button
                   className={viewMode === 'preview' ? 'active' : ''}
                   onClick={() => setViewMode('preview')}
+                  title={t('viewToggle.previewHint')}
                 >
-                  {t('viewToggle.preview')}
+                  <BookOpen size={14} strokeWidth={1.75} />
+                  <span>{t('viewToggle.preview')}</span>
                 </button>
               </div>
 
@@ -232,7 +259,13 @@ function App() {
                         ? syncFraction.value
                         : undefined
                     }
-                    onOpenWikilink={handleOpenWikilink}
+                  />
+                )}
+                {viewMode === 'live' && (
+                  <BlockEditor
+                    key={activeNote.path}
+                    content={activeNote.content}
+                    onChange={(content) => updateNoteContent(activeNote.path, content)}
                   />
                 )}
                 {(viewMode === 'preview' || viewMode === 'split') && (

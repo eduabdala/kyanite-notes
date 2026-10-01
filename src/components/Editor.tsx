@@ -8,7 +8,6 @@ import { markdown } from '@codemirror/lang-markdown'
 import { searchKeymap } from '@codemirror/search'
 import { closeBrackets, closeBracketsKeymap, completionKeymap } from '@codemirror/autocomplete'
 import { wikilinkAutocomplete } from '../lib/wikilinkAutocomplete'
-import { livePreview } from '../lib/livePreview'
 import { useVaultStore } from '../store/useVaultStore'
 import './Editor.css'
 
@@ -22,8 +21,6 @@ interface EditorProps {
   onScroll?: (fraction: number) => void
   /** quando fornecido, o editor ajusta seu próprio scroll para essa fração */
   scrollToFraction?: number
-  /** chamado ao Ctrl/Cmd+click (ou clique no modo live preview) sobre um [[wikilink]] */
-  onOpenWikilink?: (name: string) => void
 }
 
 /** Extrai arquivos de imagem de um evento de paste (DataTransferItemList) */
@@ -50,7 +47,6 @@ export function Editor({
   getNoteNames,
   onScroll,
   scrollToFraction,
-  onOpenWikilink,
 }: EditorProps) {
   const { t } = useTranslation()
   const containerRef = useRef<HTMLDivElement>(null)
@@ -59,7 +55,6 @@ export function Editor({
   const onChangeRef = useRef(onChange)
   const onScrollRef = useRef(onScroll)
   const getNoteNamesRef = useRef(getNoteNames)
-  const onOpenWikilinkRef = useRef(onOpenWikilink)
   const suppressScrollRef = useRef(false)
   const uploadAttachment = useVaultStore((s) => s.uploadAttachment)
   // guarda a função de upload atual em uma ref para poder chamá-la a partir do botão de anexo,
@@ -68,7 +63,6 @@ export function Editor({
   onChangeRef.current = onChange
   onScrollRef.current = onScroll
   getNoteNamesRef.current = getNoteNames
-  onOpenWikilinkRef.current = onOpenWikilink
 
   // recria a instância do editor quando o arquivo ativo muda
   useEffect(() => {
@@ -91,7 +85,6 @@ export function Editor({
           ...searchKeymap,
         ]),
         markdown(),
-        livePreview(),
         placeholder('Comece a escrever...'),
         EditorView.lineWrapping,
         EditorView.updateListener.of((update) => {
@@ -172,21 +165,9 @@ export function Editor({
       files.forEach((file, i) => handleImageFile(file, dropPos + i))
     }
 
-    // Ctrl/Cmd+click sobre um [[wikilink]] renderizado (live preview) abre a nota, igual Obsidian;
-    // clique simples continua só posicionando o cursor para edição normal
-    function handleClick(e: MouseEvent) {
-      if (!(e.ctrlKey || e.metaKey)) return
-      const target = e.target as HTMLElement
-      const link = target.closest<HTMLElement>('[data-wikilink-name]')
-      if (!link) return
-      e.preventDefault()
-      onOpenWikilinkRef.current?.(link.dataset.wikilinkName!)
-    }
-
     view.dom.addEventListener('paste', handlePaste)
     view.dom.addEventListener('drop', handleDrop)
     view.dom.addEventListener('dragover', (e) => e.preventDefault())
-    view.dom.addEventListener('click', handleClick)
 
     const scroller = view.scrollDOM
     const handleScroll = () => {
@@ -204,7 +185,6 @@ export function Editor({
       scroller.removeEventListener('scroll', handleScroll)
       view.dom.removeEventListener('paste', handlePaste)
       view.dom.removeEventListener('drop', handleDrop)
-      view.dom.removeEventListener('click', handleClick)
       view.destroy()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
