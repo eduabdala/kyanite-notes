@@ -6,6 +6,30 @@
   flex-shrink: 0;
 }
 
+.backlinks-header {
+  display: flex;
+  justify-content: flex-end;
+  margin: -4px -4px 8px 0;
+}
+
+.backlinks-collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.backlinks-collapse-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
 .backlinks-section {
   margin-bottom: 24px;
 }

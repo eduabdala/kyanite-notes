@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link2, PanelLeftOpen, X } from 'lucide-react'
+import { Link2, PanelLeftOpen, PanelRightOpen, X } from 'lucide-react'
 import { TopBar } from './components/TopBar'
 import { Sidebar } from './components/Sidebar'
 import { TabBar } from './components/TabBar'
@@ -20,6 +20,7 @@ type ViewMode = 'edit' | 'preview' | 'split'
 const SIDEBAR_COLLAPSED_KEY = 'kyanite:sidebar-collapsed'
 const SIDEBAR_WIDTH_KEY = 'kyanite:sidebar-width'
 const BACKLINKS_WIDTH_KEY = 'kyanite:backlinks-width'
+const BACKLINKS_COLLAPSED_KEY = 'kyanite:backlinks-collapsed'
 
 const SIDEBAR_MIN = 200
 const SIDEBAR_MAX = 480
@@ -48,6 +49,9 @@ function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'
   )
+  const [backlinksCollapsed, setBacklinksCollapsed] = useState(
+    () => localStorage.getItem(BACKLINKS_COLLAPSED_KEY) === 'true'
+  )
   const [sidebarWidth, setSidebarWidth] = useState(() => loadWidth(SIDEBAR_WIDTH_KEY, 260))
   const [backlinksWidth, setBacklinksWidth] = useState(() => loadWidth(BACKLINKS_WIDTH_KEY, 240))
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
@@ -56,6 +60,11 @@ function App() {
   function toggleSidebar(collapsed: boolean) {
     localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(collapsed))
     setSidebarCollapsed(collapsed)
+  }
+
+  function toggleBacklinks(collapsed: boolean) {
+    localStorage.setItem(BACKLINKS_COLLAPSED_KEY, String(collapsed))
+    setBacklinksCollapsed(collapsed)
   }
 
   function handleSidebarResize(deltaX: number) {
@@ -236,10 +245,22 @@ function App() {
         </main>
         {activeNote && (
           <>
-            <ResizeHandle onResize={handleBacklinksResize} />
-            <div className="backlinks-desktop" style={{ width: backlinksWidth, flexShrink: 0 }}>
-              <BacklinksPanel />
-            </div>
+            {backlinksCollapsed ? (
+              <button
+                className="backlinks-expand-btn"
+                onClick={() => toggleBacklinks(false)}
+                title={t('backlinks.expand')}
+              >
+                <PanelRightOpen size={16} strokeWidth={1.75} />
+              </button>
+            ) : (
+              <>
+                <ResizeHandle onResize={handleBacklinksResize} />
+                <div className="backlinks-desktop" style={{ width: backlinksWidth, flexShrink: 0 }}>
+                  <BacklinksPanel onCollapse={() => toggleBacklinks(true)} />
+                </div>
+              </>
+            )}
             <button
               className="mobile-backlinks-btn"
               onClick={() => setMobileBacklinksOpen(true)}

@@ -36,6 +36,9 @@ export function TopBar({ onOpenSidebar }: TopBarProps) {
 
   const dirtyCount = notes.filter((n) => n.dirty).length
   const anyPluginEnabled = kanbanEnabled || pomodoroEnabled
+  // no mobile o Pomodoro some do menu (sessão de foco contínua não combina com consulta
+  // rápida); se só ele estiver habilitado, o botão de plugins não teria nada pra mostrar
+  const anyPluginEnabledOnMobile = kanbanEnabled
 
   // fecha o dropdown ao clicar fora dele
   useEffect(() => {
@@ -75,7 +78,10 @@ export function TopBar({ onOpenSidebar }: TopBarProps) {
 
       <div className="sync-area">
         {anyPluginEnabled && (
-          <div className="plugins-menu" ref={pluginsRef}>
+          <div
+            className={`plugins-menu ${!anyPluginEnabledOnMobile ? 'plugins-menu-desktop-only' : ''}`}
+            ref={pluginsRef}
+          >
             <button
               className={`icon-toggle-btn ${pluginsOpen ? 'active' : ''}`}
               onClick={() => setPluginsOpen((o) => !o)}
@@ -94,7 +100,10 @@ export function TopBar({ onOpenSidebar }: TopBarProps) {
                   </button>
                 )}
                 {pomodoroEnabled && (
-                  <button className="plugins-dropdown-item" onClick={openPomodoro}>
+                  <button
+                    className="plugins-dropdown-item plugins-dropdown-item-desktop-only"
+                    onClick={openPomodoro}
+                  >
                     <Timer size={15} strokeWidth={1.75} />
                     <span>{t('plugins.pomodoro.name')}</span>
                     <span className="plugins-dropdown-hint">{t('topBar.pluginShortcuts.pomodoro')}</span>
@@ -105,24 +114,56 @@ export function TopBar({ onOpenSidebar }: TopBarProps) {
           </div>
         )}
 
-        {syncStatus === 'error' && (
-          <span className="sync-error" title={syncError ?? ''}>
-            {t('topBar.syncError')}
-          </span>
+        {syncStatus === 'auth-error' && (
+          <>
+            <span className="sync-error sync-text" title={syncError ?? ''}>
+              {t('topBar.authError')}
+            </span>
+            <span className="sync-dot sync-dot-error" title={t('topBar.authError')} />
+          </>
         )}
-        {syncStatus === 'syncing' && <span className="sync-status">{t('topBar.syncing')}</span>}
+        {syncStatus === 'error' && (
+          <>
+            <span className="sync-error sync-text" title={syncError ?? ''}>
+              {t('topBar.syncError')}
+            </span>
+            <span className="sync-dot sync-dot-error" title={t('topBar.syncError')} />
+          </>
+        )}
+        {syncStatus === 'syncing' && (
+          <>
+            <span className="sync-status sync-text">{t('topBar.syncing')}</span>
+            <span className="sync-dot sync-dot-syncing" title={t('topBar.syncing')} />
+          </>
+        )}
         {syncStatus === 'idle' && dirtyCount > 0 && (
-          <span className="sync-status">{t('topBar.pendingNotes', { count: dirtyCount })}</span>
+          <>
+            <span className="sync-status sync-text">
+              {t('topBar.pendingNotes', { count: dirtyCount })}
+            </span>
+            <span
+              className="sync-dot sync-dot-pending"
+              title={t('topBar.pendingNotes', { count: dirtyCount })}
+            />
+          </>
         )}
 
         {githubConfig ? (
           <>
-            <button className="btn-topbar" onClick={() => pullFromGitHub()}>
-              {t('topBar.pull')}
-            </button>
-            <button className="btn-topbar" onClick={() => syncAll()} disabled={dirtyCount === 0}>
-              {t('topBar.push')}
-            </button>
+            {syncStatus === 'auth-error' ? (
+              <button className="btn-topbar btn-connect" onClick={() => setShowModal(true)}>
+                {t('topBar.reconnect')}
+              </button>
+            ) : (
+              <>
+                <button className="btn-topbar" onClick={() => pullFromGitHub()}>
+                  {t('topBar.pull')}
+                </button>
+                <button className="btn-topbar" onClick={() => syncAll()} disabled={dirtyCount === 0}>
+                  {t('topBar.push')}
+                </button>
+              </>
+            )}
             <button className="btn-topbar" onClick={disconnectGitHub}>
               {t('topBar.disconnect')}
             </button>

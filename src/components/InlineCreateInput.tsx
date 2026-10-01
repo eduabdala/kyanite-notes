@@ -6,16 +6,19 @@ interface InlineCreateInputProps {
   depth: number
   onConfirm: (name: string) => void
   onCancel: () => void
+  /** quando informado, o input inicia preenchido e com o texto selecionado (usado para renomear) */
+  initialValue?: string
 }
 
-/** Input inline estilo VSCode/Obsidian para nomear uma nova nota ou pasta diretamente na árvore */
-export function InlineCreateInput({ kind, depth, onConfirm, onCancel }: InlineCreateInputProps) {
-  const [name, setName] = useState('')
+/** Input inline estilo VSCode/Obsidian para nomear uma nova nota ou pasta (ou renomear uma existente) diretamente na árvore */
+export function InlineCreateInput({ kind, depth, onConfirm, onCancel, initialValue = '' }: InlineCreateInputProps) {
+  const [name, setName] = useState(initialValue)
   const inputRef = useRef<HTMLInputElement>(null)
   const settledRef = useRef(false)
 
   useEffect(() => {
     inputRef.current?.focus()
+    inputRef.current?.select()
   }, [])
 
   function settle(action: () => void) {

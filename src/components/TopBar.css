@@ -69,6 +69,33 @@
   cursor: help;
 }
 
+/* indicador compacto para mobile, substitui o texto (ver @media abaixo) */
+.sync-dot {
+  display: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.sync-dot-pending {
+  background: var(--text-secondary);
+}
+
+.sync-dot-syncing {
+  background: var(--accent);
+  animation: sync-dot-pulse 1s ease-in-out infinite;
+}
+
+.sync-dot-error {
+  background: var(--danger);
+}
+
+@keyframes sync-dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
 .btn-topbar {
   background: transparent;
   border: 1px solid var(--border-color);
@@ -211,8 +238,21 @@
     display: none;
   }
 
-  .sync-status,
-  .sync-error {
+  .sync-text {
+    display: none;
+  }
+
+  .sync-dot {
+    display: block;
+  }
+
+  /* pomodoro é uma sessão de foco contínua, fora do escopo de "consulta rápida" do mobile */
+  .plugins-dropdown-item-desktop-only {
+    display: none;
+  }
+
+  /* some o botão de plugins por completo quando o único plugin habilitado é o Pomodoro */
+  .plugins-menu-desktop-only {
     display: none;
   }
 

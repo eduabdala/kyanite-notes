@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ChevronRight, FilePlus, FolderPlus, X } from 'lucide-react'
+import { ChevronRight, FilePlus, FolderPlus, Pencil, X } from 'lucide-react'
 import { useVaultStore } from '../store/useVaultStore'
 import { useTabsStore } from '../store/useTabsStore'
 import { useCreationStore } from '../store/useCreationStore'
@@ -58,7 +58,9 @@ function FolderNode({ node, depth }: { node: TreeNode; depth: number }) {
   const expanded = useFolderTreeStore((s) => s.isExpanded(node.path))
   const toggleExpanded = useFolderTreeStore((s) => s.toggle)
   const [dragOver, setDragOver] = useState(false)
+  const [renaming, setRenaming] = useState(false)
   const deleteFolder = useVaultStore((s) => s.deleteFolder)
+  const renameFolder = useVaultStore((s) => s.renameFolder)
   const moveNote = useVaultStore((s) => s.moveNote)
   const startCreation = useCreationStore((s) => s.start)
   const confirm = useConfirmStore((s) => s.confirm)
@@ -73,6 +75,16 @@ function FolderNode({ node, depth }: { node: TreeNode; depth: number }) {
     e.stopPropagation()
     if (!expanded) toggleExpanded(node.path)
     startCreation('folder', node.path)
+  }
+
+  function handleRename(e: React.MouseEvent) {
+    e.stopPropagation()
+    setRenaming(true)
+  }
+
+  function handleConfirmRename(newName: string) {
+    setRenaming(false)
+    if (newName !== node.name) renameFolder(node.path, newName)
   }
 
   async function handleDelete(e: React.MouseEvent) {
@@ -100,6 +112,23 @@ function FolderNode({ node, depth }: { node: TreeNode; depth: number }) {
     if (path) moveNote(path, node.path)
   }
 
+  if (renaming) {
+    return (
+      <div className="tree-folder">
+        <InlineCreateInput
+          kind="folder"
+          depth={depth}
+          initialValue={node.name}
+          onConfirm={handleConfirmRename}
+          onCancel={() => setRenaming(false)}
+        />
+        {expanded && (
+          <FolderTree nodes={node.children ?? []} depth={depth + 1} parentPath={node.path} />
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="tree-folder">
       <div
@@ -123,6 +152,9 @@ function FolderNode({ node, depth }: { node: TreeNode; depth: number }) {
           <button onClick={handleNewSubfolder} title={t('sidebar.newFolder')}>
             <FolderPlus size={14} strokeWidth={1.75} />
           </button>
+          <button onClick={handleRename} title={t('sidebar.rename')}>
+            <Pencil size={14} strokeWidth={1.75} />
+          </button>
           <button onClick={handleDelete} title={t('sidebar.deleteFolder')}>
             <X size={14} strokeWidth={1.75} />
           </button>
@@ -140,10 +172,22 @@ function NoteNode({ node, depth }: { node: TreeNode; depth: number }) {
   const activePath = useTabsStore((s) => s.activePath)
   const openTab = useTabsStore((s) => s.openTab)
   const deleteNote = useVaultStore((s) => s.deleteNote)
+  const renameNote = useVaultStore((s) => s.renameNote)
   const notes = useVaultStore((s) => s.notes)
   const confirm = useConfirmStore((s) => s.confirm)
+  const [renaming, setRenaming] = useState(false)
 
   const note = notes.find((n) => n.path === node.path)
+
+  function handleRename(e: React.MouseEvent) {
+    e.stopPropagation()
+    setRenaming(true)
+  }
+
+  function handleConfirmRename(newName: string) {
+    setRenaming(false)
+    if (newName !== node.name) renameNote(node.path, newName)
+  }
 
   async function handleDelete(e: React.MouseEvent) {
     e.stopPropagation()
@@ -154,6 +198,18 @@ function NoteNode({ node, depth }: { node: TreeNode; depth: number }) {
   function handleDragStart(e: React.DragEvent) {
     e.dataTransfer.setData(DRAG_MIME, node.path)
     e.dataTransfer.effectAllowed = 'move'
+  }
+
+  if (renaming) {
+    return (
+      <InlineCreateInput
+        kind="note"
+        depth={depth}
+        initialValue={node.name}
+        onConfirm={handleConfirmRename}
+        onCancel={() => setRenaming(false)}
+      />
+    )
   }
 
   return (
@@ -169,6 +225,9 @@ function NoteNode({ node, depth }: { node: TreeNode; depth: number }) {
         {note?.dirty && <span className="dirty-dot" title={t('sidebar.notSynced')} />}
       </span>
       <span className="tree-row-actions">
+        <button onClick={handleRename} title={t('sidebar.rename')}>
+          <Pencil size={14} strokeWidth={1.75} />
+        </button>
         <button onClick={handleDelete} title={t('sidebar.delete')}>
           <X size={14} strokeWidth={1.75} />
         </button>

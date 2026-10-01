@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import {
   Plus, X, GripVertical, FileText, Link2, ArrowLeft, Pencil, Trash2,
   Play, Flag, CalendarClock, Clock, Rows2, Rows3, Tag as TagIcon, Check,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { useVaultStore } from '../store/useVaultStore'
 import { useTabsStore } from '../store/useTabsStore'
@@ -124,6 +125,16 @@ export function KanbanBoard({ onClose }: KanbanBoardProps) {
     commit((b) => moveCard(b, drag, columnId, index))
     setDrag(null)
     setDropTarget(null)
+  }
+
+  // alternativa ao drag-and-drop (que depende da HTML5 Drag and Drop API e não funciona em
+  // touch): move o cartão para o topo da coluna anterior/seguinte. Os botões só aparecem em
+  // mobile via CSS (ver .kanban-move-mobile-only), desktop continua usando o drag-and-drop.
+  function moveCardToAdjacentColumn(cardId: string, columnId: string, direction: -1 | 1) {
+    const columnIndex = board.columns.findIndex((c) => c.id === columnId)
+    const targetColumn = board.columns[columnIndex + direction]
+    if (!targetColumn) return
+    commit((b) => moveCard(b, cardId, targetColumn.id, 0))
   }
 
   function submitCard(columnId: string) {
@@ -537,6 +548,25 @@ export function KanbanBoard({ onClose }: KanbanBoardProps) {
                         </div>
 
                         <div className="kanban-card-actions">
+                          {/* alternativa ao drag-and-drop em touch: só aparecem em mobile (ver CSS) */}
+                          <button
+                            className="kanban-icon-btn kanban-move-mobile-only"
+                            title={t('kanban.moveLeft')}
+                            disabled={board.columns.findIndex((c) => c.id === col.id) === 0}
+                            onClick={() => moveCardToAdjacentColumn(card.id, col.id, -1)}
+                          >
+                            <ChevronLeft size={13} strokeWidth={1.75} />
+                          </button>
+                          <button
+                            className="kanban-icon-btn kanban-move-mobile-only"
+                            title={t('kanban.moveRight')}
+                            disabled={
+                              board.columns.findIndex((c) => c.id === col.id) === board.columns.length - 1
+                            }
+                            onClick={() => moveCardToAdjacentColumn(card.id, col.id, 1)}
+                          >
+                            <ChevronRight size={13} strokeWidth={1.75} />
+                          </button>
                           <button
                             className="kanban-icon-btn"
                             title={t('kanban.focusCard')}
