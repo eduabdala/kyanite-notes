@@ -35,6 +35,13 @@ import {
   //clearNoteLinks,
   type KanbanCollection,
 } from '../lib/kanban'
+import {
+  AGENDA_PATH,
+  emptyCollection as emptyAgendaCollection,
+  parseCollection as parseAgendaCollection,
+  serializeCollection as serializeAgendaCollection,
+  type AgendaCollection,
+} from '../lib/agenda'
 import { useConflictStore } from './useConflictStore'
 import { useTabsStore } from './useTabsStore'
 import type { GitHubConfig, LinkGraph, Note, TreeNode } from '../lib/types'
@@ -100,6 +107,10 @@ interface VaultState {
   /** Coleção de quadros Kanban do vault (`.kyanite/kanban.json`), independente das notas */
   kanbanCollection: KanbanCollection
   saveKanbanCollection: (collection: KanbanCollection) => Promise<void>
+
+  /** Tarefas da Agenda do vault (`.kyanite/agenda.json`), independente das notas */
+  agendaCollection: AgendaCollection
+  saveAgendaCollection: (collection: AgendaCollection) => Promise<void>
 }
 
 function recomputeGraph(notes: Note[]): LinkGraph {
@@ -107,11 +118,22 @@ function recomputeGraph(notes: Note[]): LinkGraph {
 }
 
 const KANBAN_LOCAL_KEY = 'kyanite:kanban-board'
+const AGENDA_LOCAL_KEY = 'kyanite:agenda'
 
 function loadLocalKanbanCollection(): KanbanCollection {
   const raw = localStorage.getItem(KANBAN_LOCAL_KEY)
   if (!raw) return emptyCollection()
   return parseCollection(raw)
+}
+
+function loadLocalAgendaCollection(): AgendaCollection {
+  const raw = localStorage.getItem(AGENDA_LOCAL_KEY)
+  if (!raw) return emptyAgendaCollection()
+  return parseAgendaCollection(raw)
+}
+
+function saveLocalAgendaCollection(collection: AgendaCollection) {
+  localStorage.setItem(AGENDA_LOCAL_KEY, serializeAgendaCollection(collection))
 }
 
 function saveLocalKanbanCollection(collection: KanbanCollection) {
@@ -120,22 +142,55 @@ function saveLocalKanbanCollection(collection: KanbanCollection) {
 
 /** Antes de sobrescrever uma nota existente no GitHub, verifica se o remoto mudou desde o
  * último sync local (sha diferente do conhecido). Se mudou, mostra o diff e espera confirmação
- * do usuário. Retorna false se o push deve ser cancelado. */
-async function confirmPushIfRemoteChanged(client: GitHubClient, note: Note): Promise<boolean> {
-  if (!note.sha) return true // nota nova, ainda não existe no remoto
+ * do usuário.
+ *
+ * Retorna o sha a usar no putFile seguinte (o sha remoto mais recente que acabamos de ler —
+ * não o `note.sha` local, que pode estar desatualizado), ou `undefined` se a nota é nova
+ * (ainda não existe no remoto, putFile deve criar sem sha), ou `null` se o push deve ser
+ * cancelado (usuário escolheu não sobrescrever).
+ *
+ * Fechar essa checagem com o sha "fresco" reduz a janela de corrida entre checar e escrever,
+ * mas não elimina 100%: outro dispositivo ainda pode escrever entre essa leitura e o putFile
+ * real. Por isso putFile() trata esse caso residual com um retry (ver pushNote/syncAll). */
+async function confirmPushIfRemoteChanged(
+  client: GitHubClient,
+  note: Note
+): Promise<string | undefined | null> {
+  if (!note.sha) return undefined // nota nova, ainda não existe no remoto
 
   try {
     const remote = await client.getFileContent(note.path)
-    if (remote.sha === note.sha) return true // remoto não mudou desde o último sync
+    if (remote.sha === note.sha) return note.sha // remoto não mudou desde o último sync
 
     const lines = diffLines(remote.content, note.content)
-    if (isDiffEmpty(lines)) return true // conteúdo idêntico, mesmo com sha diferente
+    if (isDiffEmpty(lines)) return remote.sha // conteúdo idêntico, mesmo com sha diferente
 
-    return await useConflictStore.getState().confirmOverwrite(note.path, lines)
+    const confirmed = await useConflictStore.getState().confirmOverwrite(note.path, lines)
+    return confirmed ? remote.sha : null
   } catch {
     // arquivo pode ter sido deletado no remoto, ou outro erro de leitura: deixa o putFile
     // original tratar o erro (ex: recriar o arquivo)
-    return true
+    return note.sha
+  }
+}
+
+/** putFile com um retry automático em caso de 409 (conflito de sha): relê o sha atual do
+ * remoto e tenta de novo uma vez. Cobre a janela de corrida residual entre checar o sha
+ * (confirmPushIfRemoteChanged) e escrever de fato — ex: outro dispositivo sincronizando ao
+ * mesmo tempo. Se o segundo put também falhar, propaga o erro normalmente. */
+async function putFileWithConflictRetry(
+  client: GitHubClient,
+  path: string,
+  content: string,
+  sha: string | undefined
+): Promise<string> {
+  try {
+    return await client.putFile(path, content, sha)
+  } catch (err) {
+    const status = (err as { status?: number } | null)?.status
+    if (status !== 409) throw err
+    const fresh = await client.getFileContent(path)
+    return await client.putFile(path, content, fresh.sha)
   }
 }
 
@@ -273,6 +328,16 @@ export const useVaultStore = create<VaultState>((set, get) => {
         // arquivo ainda não existe no repo; mantém a coleção local como está
       }
 
+      // tarefas da Agenda (.kyanite/agenda.json): mesma lógica — repo é a fonte de verdade
+      let agendaCollection = get().agendaCollection
+      try {
+        const agendaFile = await client.getFileContent(AGENDA_PATH)
+        agendaCollection = parseAgendaCollection(agendaFile.content)
+        saveLocalAgendaCollection(agendaCollection)
+      } catch {
+        // arquivo ainda não existe no repo; mantém a coleção local como está
+      }
+
       saveLocalNotes(merged)
       saveLocalFolders(mergedFolders)
       set({
@@ -281,6 +346,7 @@ export const useVaultStore = create<VaultState>((set, get) => {
         linkGraph: recomputeGraph(merged),
         pluginConfig,
         kanbanCollection,
+        agendaCollection,
         syncStatus: 'idle',
       })
       get().refreshRepoUsage()
@@ -296,12 +362,12 @@ export const useVaultStore = create<VaultState>((set, get) => {
     if (!note) return
 
     const client = new GitHubClient(githubConfig)
-    const shouldPush = await confirmPushIfRemoteChanged(client, note)
-    if (!shouldPush) return
+    const confirmedSha = await confirmPushIfRemoteChanged(client, note)
+    if (confirmedSha === null) return // usuário cancelou o push diante do conflito
 
     set({ syncStatus: 'syncing', syncError: null })
     try {
-      const sha = await client.putFile(note.path, note.content, note.sha)
+      const sha = await putFileWithConflictRetry(client, note.path, note.content, confirmedSha)
       const updated = get().notes.map((n) =>
         n.path === path ? { ...n, sha, dirty: false } : n
       )
@@ -321,17 +387,20 @@ export const useVaultStore = create<VaultState>((set, get) => {
     const client = new GitHubClient(githubConfig)
 
     // verifica conflitos antes de começar a sincronizar, para o usuário decidir cada
-    // um sem misturar com o estado "syncing" (e sem enviar parte das notas e travar no meio)
+    // um sem misturar com o estado "syncing" (e sem enviar parte das notas e travar no meio);
+    // guarda o sha confirmado (remoto mais recente) de cada nota para usar no putFile depois
+    const confirmedShas = new Map<string, string | undefined>()
     for (const note of dirtyNotes) {
-      const shouldPush = await confirmPushIfRemoteChanged(client, note)
-      if (!shouldPush) return
+      const confirmedSha = await confirmPushIfRemoteChanged(client, note)
+      if (confirmedSha === null) return // usuário cancelou diante de um conflito
+      confirmedShas.set(note.path, confirmedSha)
     }
 
     set({ syncStatus: 'syncing', syncError: null })
     try {
       let current = get().notes
       for (const note of dirtyNotes) {
-        const sha = await client.putFile(note.path, note.content, note.sha)
+        const sha = await putFileWithConflictRetry(client, note.path, note.content, confirmedShas.get(note.path))
         current = current.map((n) => (n.path === note.path ? { ...n, sha, dirty: false } : n))
       }
       saveLocalNotes(current)
@@ -683,6 +752,7 @@ export const useVaultStore = create<VaultState>((set, get) => {
 
   pluginConfig: loadLocalPluginConfig(),
   kanbanCollection: loadLocalKanbanCollection(),
+  agendaCollection: loadLocalAgendaCollection(),
 
   isPluginEnabled: (id) => {
     return get().pluginConfig.plugins[id] ?? false
@@ -732,6 +802,28 @@ export const useVaultStore = create<VaultState>((set, get) => {
       await client.putFile(KANBAN_BOARD_PATH, serializeCollection(collection), sha)
     } catch (err) {
       handleGitHubError(err, 'Erro ao salvar os quadros Kanban')
+    }
+  },
+
+  saveAgendaCollection: async (collection) => {
+    saveLocalAgendaCollection(collection)
+    set({ agendaCollection: collection })
+
+    const { githubConfig } = get()
+    if (!githubConfig) return
+
+    try {
+      const client = new GitHubClient(githubConfig)
+      let sha: string | undefined
+      try {
+        const existing = await client.getFileContent(AGENDA_PATH)
+        sha = existing.sha
+      } catch {
+        // arquivo ainda não existe no repo; será criado sem sha
+      }
+      await client.putFile(AGENDA_PATH, serializeAgendaCollection(collection), sha)
+    } catch (err) {
+      handleGitHubError(err, 'Erro ao salvar a agenda')
     }
   },
   }

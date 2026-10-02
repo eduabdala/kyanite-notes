@@ -5,7 +5,7 @@
 
 export const PLUGIN_CONFIG_PATH = '.kyanite/config.json'
 
-export type PluginId = 'kanban' | 'pomodoro'
+export type PluginId = 'kanban' | 'pomodoro' | 'agenda'
 
 export interface PluginConfig {
   plugins: Record<PluginId, boolean>
@@ -15,6 +15,7 @@ export const DEFAULT_PLUGIN_CONFIG: PluginConfig = {
   plugins: {
     kanban: false,
     pomodoro: false,
+    agenda: false,
   },
 }
 

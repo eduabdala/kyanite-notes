@@ -17,6 +17,7 @@ import { Editor } from './components/Editor'
 import { Preview } from './components/Preview'
 import { BlockEditor } from './components/BlockEditor'
 import { KanbanBoard } from './components/KanbanBoard'
+import { AgendaBoard } from './components/AgendaBoard'
 import { BacklinksPanel } from './components/BacklinksPanel'
 import { ResizeHandle } from './components/ResizeHandle'
 import { ConfirmDialog } from './components/ConfirmDialog'
@@ -24,6 +25,7 @@ import { ConflictDialog } from './components/ConflictDialog'
 import { useVaultStore } from './store/useVaultStore'
 import { useTabsStore } from './store/useTabsStore'
 import { useUiStore } from './store/useUiStore'
+import { useAgendaAlerts } from './store/useAgendaAlerts'
 
 type ViewMode = 'edit' | 'live' | 'preview' | 'split'
 
@@ -60,6 +62,7 @@ function App() {
   const pullFromGitHub = useVaultStore((s) => s.pullFromGitHub)
   const pushNote = useVaultStore((s) => s.pushNote)
   const kanbanEnabled = useVaultStore((s) => s.isPluginEnabled('kanban'))
+  const agendaEnabled = useVaultStore((s) => s.isPluginEnabled('agenda'))
   const requestedViewMode = useUiStore((s) => s.requestedViewMode)
   const clearRequestedViewMode = useUiStore((s) => s.clearRequestedViewMode)
   const [viewMode, setViewModeState] = useState<ViewMode>(loadViewMode)
@@ -69,6 +72,8 @@ function App() {
     setViewModeState(mode)
   }
   const [kanbanOpen, setKanbanOpen] = useState(false)
+  const [agendaOpen, setAgendaOpen] = useState(false)
+  useAgendaAlerts()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'
   )
@@ -155,17 +160,22 @@ function App() {
 
   const activeNote = notes.find((n) => n.path === activePath)
 
-  // se o plugin kanban for desativado enquanto o quadro está aberto, fecha o quadro
+  // se o plugin kanban/agenda for desativado enquanto a view está aberta, fecha a view
   useEffect(() => {
     if (!kanbanEnabled && kanbanOpen) setKanbanOpen(false)
   }, [kanbanEnabled, kanbanOpen])
 
-  // atalho de plugins da TopBar: abre o quadro Kanban (view própria, à parte das notas)
+  useEffect(() => {
+    if (!agendaEnabled && agendaOpen) setAgendaOpen(false)
+  }, [agendaEnabled, agendaOpen])
+
+  // atalho de plugins da TopBar: abre o quadro Kanban ou a Agenda (views próprias, à parte das notas)
   useEffect(() => {
     if (!requestedViewMode) return
     if (requestedViewMode === 'board' && kanbanEnabled) setKanbanOpen(true)
+    if (requestedViewMode === 'agenda' && agendaEnabled) setAgendaOpen(true)
     clearRequestedViewMode()
-  }, [requestedViewMode, kanbanEnabled, clearRequestedViewMode])
+  }, [requestedViewMode, kanbanEnabled, agendaEnabled, clearRequestedViewMode])
 
   // no mobile, trocar de nota fecha o drawer da sidebar para revelar o editor
   useEffect(() => {
@@ -179,6 +189,11 @@ function App() {
         {kanbanOpen && (
           <div className="kanban-overlay">
             <KanbanBoard onClose={() => setKanbanOpen(false)} />
+          </div>
+        )}
+        {agendaOpen && (
+          <div className="kanban-overlay">
+            <AgendaBoard onClose={() => setAgendaOpen(false)} />
           </div>
         )}
         {sidebarCollapsed ? (

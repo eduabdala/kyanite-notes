@@ -184,6 +184,25 @@
   cursor: not-allowed;
 }
 
+/* indicador global de tarefas atrasadas da Agenda, visível em qualquer tela (não só na Agenda) */
+.agenda-overdue-topbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--danger);
+  border: none;
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.agenda-overdue-topbar-btn:hover {
+  filter: brightness(1.1);
+}
+
 .spin {
   animation: icon-spin 0.9s linear infinite;
 }
