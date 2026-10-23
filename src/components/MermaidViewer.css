@@ -1,0 +1,79 @@
+.mermaid-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+}
+
+.mermaid-viewer-toolbar {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.mermaid-viewer-toolbar button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.mermaid-viewer-toolbar button:hover {
+  background: var(--bg-hover);
+}
+
+.mermaid-viewer-scale {
+  min-width: 48px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.mermaid-viewer-stage {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  /* evita que arrastar selecione os textos do diagrama */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.mermaid-viewer-stage * {
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: inherit;
+}
+
+.mermaid-viewer-stage:active {
+  cursor: grabbing;
+}
+
+.mermaid-viewer-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+}
+
+.mermaid-viewer-content svg {
+  display: block;
+}

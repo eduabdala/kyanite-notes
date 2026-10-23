@@ -48,3 +48,46 @@
 .editor-attach-input {
   display: none;
 }
+
+.editor-save-btn {
+  position: absolute;
+  bottom: 64px;
+  right: 16px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.editor-save-btn.dirty {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.editor-save-btn:hover:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.editor-save-btn:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.editor-save-btn .spin {
+  animation: editor-save-spin 0.9s linear infinite;
+}
+
+@keyframes editor-save-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

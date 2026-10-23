@@ -34,6 +34,54 @@ npm run build
 npm run preview
 ```
 
+## Build desktop (Tauri)
+
+O mesmo código roda como app nativo de desktop (Windows e Linux) via [Tauri](https://tauri.app), sem nenhuma mudança no `src/`.
+
+### Pré-requisitos (uma vez por máquina)
+
+- **Rust**: instale via [rustup.rs](https://rustup.rs) (`winget install Rustlang.Rustup` no Windows)
+- **Windows**: Microsoft C++ Build Tools, com o componente "Desktop development with C++" (`winget install Microsoft.VisualStudio.2022.BuildTools`)
+- **Linux**: `webkit2gtk`, `libayatana-appindicator3-dev` e demais dependências do WebView — veja a lista completa em [tauri.app/start/prerequisites](https://tauri.app/start/prerequisites/#linux)
+
+Depois de instalar o Rust, feche e reabra o terminal para o PATH atualizar.
+
+### Rodando em modo dev (janela nativa com hot reload)
+
+```bash
+npm run desktop:dev
+```
+
+### Gerando o instalador/executável
+
+```bash
+npm run desktop:build
+```
+
+Gera, em `src-tauri/target/release/bundle/`:
+- Windows: instalador `.exe` (NSIS)
+- Linux: `.deb` e `.AppImage`
+
+A versão exibida no instalador vem de `src-tauri/tauri.conf.json` (campo `version`) — atualize junto com `APP_VERSION` em `src/lib/version.ts` a cada release.
+
+### Build Linux via Docker
+
+Para gerar o `.deb`/`.AppImage` sem instalar Rust na máquina local, use o `Dockerfile` na raiz do projeto (requer Docker 23+ com BuildKit):
+
+```bash
+DOCKER_BUILDKIT=1 docker build --target artifacts --output dist-linux .
+```
+
+Os instaladores aparecem em `./dist-linux/deb/` e `./dist-linux/appimage/`.
+
+### Build automático via GitHub Actions
+
+O workflow [`.github/workflows/desktop-build.yml`](./.github/workflows/desktop-build.yml) builda os instaladores Windows e Linux automaticamente, cada um na sua runner nativa (sem cross-compile). Ele dispara:
+- manualmente, pela aba **Actions → Build desktop (Windows + Linux) → Run workflow**
+- automaticamente, ao criar uma tag `v*` (ex: `git tag v0.5.0 && git push --tags`)
+
+Os instaladores ficam disponíveis como artifacts do run (download direto na aba Actions). O workflow não cria uma Release automaticamente — se quiser isso, dá para trocar os passos de `upload-artifact` por [`tauri-apps/tauri-action`](https://github.com/tauri-apps/tauri-action), que já integra com GitHub Releases.
+
 ## Conectando ao GitHub
 
 O Kyanite não usa git por trás — ele lê e escreve arquivos `.md` direto via API REST do GitHub, usando um **Personal Access Token**. Isso funciona igual em repositórios públicos ou privados.
@@ -58,7 +106,7 @@ Ver [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) para detalhes sobre a estru
 ## Roadmap
 
 - [x] Resolução de conflitos ao fazer pull com mudanças locais não sincronizadas (diff visual, escolher versão local ou remota)
-- [ ] Empacotamento desktop via Tauri
+- [x] Empacotamento desktop via Tauri (Windows e Linux)
 - [ ] PWA (uso offline completo na versão web)
 - [ ] Grafo visual de notas (visualização interativa das conexões entre notas, estilo grafo do Obsidian)
 - [ ] Canvas (quadro visual livre para organizar notas, texto e conexões espacialmente)

@@ -6,4 +6,4 @@ compatibility_date = "2025-01-01"
 # GITHUB_CLIENT_ID pode ficar aqui como var normal (não é secreto)
 [vars]
 GITHUB_CLIENT_ID = "Ov23lifDPzpXErI2tSyt"
-ALLOWED_ORIGINS = "http://localhost:5173,https://kyanite-notes.vercel.app"
+ALLOWED_ORIGINS = "http://localhost:5173,https://kyanite-notes.vercel.app,https://kyanite-notes-beta.vercel.app"

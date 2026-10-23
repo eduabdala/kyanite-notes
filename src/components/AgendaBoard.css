@@ -1,0 +1,612 @@
+.agenda-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  background: var(--bg-primary);
+}
+
+.agenda-view-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-color);
+  flex-wrap: wrap;
+}
+
+.agenda-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 0.8rem;
+  font-family: var(--font-sans);
+  cursor: pointer;
+}
+
+.agenda-back-btn:hover {
+  background: var(--bg-hover);
+}
+
+.agenda-view-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.agenda-view-toggle {
+  display: flex;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+.agenda-view-toggle button {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-family: var(--font-sans);
+  cursor: pointer;
+}
+
+.agenda-view-toggle button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.agenda-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.agenda-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  padding: 5px;
+  cursor: pointer;
+}
+
+.agenda-icon-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.agenda-today-btn {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-family: var(--font-sans);
+  cursor: pointer;
+}
+
+.agenda-today-btn:hover {
+  background: var(--bg-hover);
+}
+
+.agenda-month-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.agenda-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.agenda-calendar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.agenda-weekday-row,
+.agenda-week-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.agenda-weekday {
+  text-align: center;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  padding: 4px 0;
+}
+
+.agenda-week-row {
+  flex: 1;
+  margin-top: 4px;
+}
+
+.agenda-calendar.week .agenda-week-row {
+  min-height: 320px;
+}
+
+.agenda-day {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  min-height: 72px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 6px;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-sans);
+}
+
+.agenda-day:hover {
+  border-color: var(--accent);
+}
+
+.agenda-day.outside {
+  opacity: 0.4;
+}
+
+.agenda-day.today .agenda-day-number {
+  background: var(--accent);
+  color: white;
+}
+
+.agenda-day.selected {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.agenda-day-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.agenda-day-tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.agenda-day-task-chip {
+  font-size: 0.68rem;
+  color: var(--text-primary);
+  background: var(--bg-hover);
+  border-radius: 4px;
+  padding: 1px 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agenda-day-task-chip.done {
+  text-decoration: line-through;
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+.agenda-day-task-more {
+  font-size: 0.66rem;
+  color: var(--text-secondary);
+  padding-left: 3px;
+}
+
+.agenda-day-panel {
+  width: 280px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  padding: 14px;
+  overflow-y: auto;
+}
+
+.agenda-day-panel-title {
+  margin: 0 0 10px;
+  font-size: 0.88rem;
+  color: var(--text-primary);
+  text-transform: capitalize;
+}
+
+.agenda-task-list {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.agenda-task-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 7px;
+  padding: 6px 8px;
+}
+
+.agenda-task-checkbox {
+  display: inline-flex;
+  position: relative;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.agenda-task-checkbox input {
+  position: absolute;
+  opacity: 0;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.agenda-task-checkbox span {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+}
+
+.agenda-task-checkbox input:checked + span {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.agenda-task-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.agenda-task-item.done .agenda-task-text {
+  text-decoration: line-through;
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+.agenda-task-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  color: var(--accent);
+  padding: 2px 6px;
+  font-size: 0.68rem;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agenda-task-remove {
+  display: inline-flex;
+  align-items: center;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.agenda-task-remove:hover {
+  color: var(--danger);
+  background: var(--bg-hover);
+}
+
+.agenda-task-empty {
+  list-style: none;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 12px 0;
+}
+
+.agenda-add-task {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.agenda-add-task-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  padding: 6px 8px;
+}
+
+.agenda-add-task-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.agenda-add-task-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  width: 32px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.agenda-add-task-btn:hover {
+  background: var(--accent-hover);
+}
+
+@media (max-width: 768px) {
+  .agenda-body {
+    flex-direction: column;
+  }
+
+  .agenda-day-panel {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--border-color);
+    max-height: 45%;
+  }
+
+  .agenda-day {
+    min-height: 56px;
+  }
+
+  .agenda-day-tasks {
+    display: none;
+  }
+
+  .agenda-day.today .agenda-day-number,
+  .agenda-day.selected .agenda-day-number {
+    position: relative;
+  }
+}
+
+/* ===== alertas / atrasados ===== */
+.agenda-overdue-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--danger);
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+
+.agenda-day-number-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.agenda-day-overdue-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+
+.agenda-chip-time {
+  font-family: var(--font-mono);
+  opacity: 0.75;
+  margin-right: 3px;
+}
+
+.agenda-day-task-chip.overdue {
+  outline: 1px solid var(--danger);
+}
+
+.agenda-day-task-chip.urgency-1 { border-left: 2px solid #6b9bd1; }
+.agenda-day-task-chip.urgency-2 { border-left: 2px solid #d1a343; }
+.agenda-day-task-chip.urgency-3 { border-left: 2px solid #d17a43; }
+.agenda-day-task-chip.urgency-4 { border-left: 2px solid var(--danger); }
+
+.icon-toggle-btn.active,
+.agenda-icon-btn.active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ===== metadados da tarefa (horário, urgência, descrição, atraso) ===== */
+.agenda-task-item {
+  align-items: flex-start;
+}
+
+.agenda-task-item.overdue {
+  border-color: var(--danger);
+}
+
+.agenda-task-item.urgency-1 { border-left: 3px solid #6b9bd1; }
+.agenda-task-item.urgency-2 { border-left: 3px solid #d1a343; }
+.agenda-task-item.urgency-3 { border-left: 3px solid #d17a43; }
+.agenda-task-item.urgency-4 { border-left: 3px solid var(--danger); }
+
+.agenda-task-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  cursor: pointer;
+}
+
+.agenda-task-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.agenda-task-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+.agenda-task-urgency {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+}
+
+.agenda-task-urgency.urgency-1 { color: #6b9bd1; }
+.agenda-task-urgency.urgency-2 { color: #d1a343; }
+.agenda-task-urgency.urgency-3 { color: #d17a43; }
+.agenda-task-urgency.urgency-4 { color: var(--danger); }
+
+.agenda-task-overdue-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--danger);
+}
+
+.agenda-task-description {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ===== formulário de criação expandido ===== */
+.agenda-add-task-row {
+  display: flex;
+  gap: 6px;
+}
+
+.agenda-add-task-extra {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+}
+
+.agenda-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1 1 110px;
+  min-width: 0;
+}
+
+.agenda-field-wide {
+  flex: 1 1 100%;
+}
+
+.agenda-field span {
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.agenda-field-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  padding: 5px 7px;
+}
+
+.agenda-field-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.agenda-field-textarea {
+  resize: vertical;
+  min-height: 48px;
+}
+
+/* ===== edição inline de tarefa ===== */
+.agenda-task-item-editing {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.agenda-task-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.agenda-task-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.agenda-task-edit-save {
+  width: auto;
+  padding: 0 12px;
+  font-size: 0.78rem;
+  font-family: var(--font-sans);
+}

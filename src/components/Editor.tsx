@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ImagePlus } from 'lucide-react'
+import { ImagePlus, Check, CloudUpload, RefreshCw } from 'lucide-react'
 import { EditorView, keymap, placeholder } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
@@ -57,6 +57,10 @@ export function Editor({
   const getNoteNamesRef = useRef(getNoteNames)
   const suppressScrollRef = useRef(false)
   const uploadAttachment = useVaultStore((s) => s.uploadAttachment)
+  const githubConfig = useVaultStore((s) => s.githubConfig)
+  const pushNote = useVaultStore((s) => s.pushNote)
+  const syncStatus = useVaultStore((s) => s.syncStatus)
+  const isDirty = useVaultStore((s) => s.notes.find((n) => n.path === path)?.dirty ?? false)
   // guarda a função de upload atual em uma ref para poder chamá-la a partir do botão de anexo,
   // que fica fora do useEffect (não é recriado quando o arquivo ativo muda)
   const handleImageFileRef = useRef<(file: File, position: number) => Promise<void>>(null!)
@@ -213,9 +217,28 @@ export function Editor({
     e.target.value = '' // permite selecionar o mesmo arquivo de novo depois
   }
 
+  const isSyncingThisNote = syncStatus === 'syncing'
+
   return (
     <div className="editor-container">
       <div className="editor-cm-mount" ref={containerRef} />
+      {githubConfig && (
+        <button
+          type="button"
+          className={`editor-save-btn ${isDirty ? 'dirty' : ''}`}
+          title={isDirty ? t('editor.saveAndSync') : t('editor.synced')}
+          onClick={() => pushNote(path)}
+          disabled={!isDirty || isSyncingThisNote}
+        >
+          {isSyncingThisNote ? (
+            <RefreshCw size={16} strokeWidth={1.75} className="spin" />
+          ) : isDirty ? (
+            <CloudUpload size={16} strokeWidth={1.75} />
+          ) : (
+            <Check size={16} strokeWidth={1.75} />
+          )}
+        </button>
+      )}
       <button
         type="button"
         className="editor-attach-btn"

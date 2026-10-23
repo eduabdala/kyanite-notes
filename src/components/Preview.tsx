@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { MERMAID_PLACEHOLDER_CLASS, renderMarkdown } from '../lib/markdown'
+import { useTranslation } from 'react-i18next'
+import { renderMarkdown } from '../lib/markdown'
+import { renderMermaidBlocks } from '../lib/mermaid'
 import { splitPreset, useThemeStore } from '../store/useThemeStore'
 import { useVaultStore } from '../store/useVaultStore'
 import { useTabsStore } from '../store/useTabsStore'
 import './Preview.css'
-
-let mermaidIdCounter = 0
 
 interface PreviewProps {
   content: string
@@ -14,6 +14,7 @@ interface PreviewProps {
 }
 
 export function Preview({ content, onScroll, scrollToFraction }: PreviewProps) {
+  const { t } = useTranslation()
   const notes = useVaultStore((s) => s.notes)
   const createNote = useVaultStore((s) => s.createNote)
   const openTab = useTabsStore((s) => s.openTab)
@@ -37,43 +38,8 @@ export function Preview({ content, onScroll, scrollToFraction }: PreviewProps) {
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
-
-    const blocks = container.querySelectorAll<HTMLElement>(`.${MERMAID_PLACEHOLDER_CLASS}`)
-    if (blocks.length === 0) return
-
-    let cancelled = false
-
-    import('mermaid').then(({ default: mermaid }) => {
-      if (cancelled) return
-
-      mermaid.initialize({
-        startOnLoad: false,
-        securityLevel: 'strict',
-        theme: mode === 'dark' ? 'dark' : 'default',
-      })
-
-      blocks.forEach(async (block) => {
-        const code = block.dataset.mermaidCode ? decodeURIComponent(block.dataset.mermaidCode) : ''
-        if (!code) return
-        const id = `mermaid-${mermaidIdCounter++}`
-        try {
-          const { svg } = await mermaid.render(id, code)
-          if (cancelled) return
-          block.innerHTML = svg
-          block.classList.add('mermaid-block-rendered')
-        } catch (err) {
-          if (cancelled) return
-          const message = err instanceof Error ? err.message : 'Erro ao renderizar diagrama'
-          block.textContent = message
-          block.classList.add('mermaid-block-error')
-        }
-      })
-    })
-
-    return () => {
-      cancelled = true
-    }
-  }, [html, mode])
+    return renderMermaidBlocks(container, mode, t('mermaid.expand'))
+  }, [html, mode, t])
 
   function handleClick(e: React.MouseEvent<HTMLDivElement>) {
     const target = e.target as HTMLElement

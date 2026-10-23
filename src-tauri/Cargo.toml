@@ -1,0 +1,25 @@
+[package]
+name = "kyanite-notes"
+version = "0.5.0"
+description = "Editor de notas estilo Obsidian com sincronização via GitHub"
+authors = ["eduabdala"]
+license = "MIT"
+repository = "https://github.com/eduabdala/kyanite-notes"
+edition = "2024"
+rust-version = "1.90"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7.1", features = [] }
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+tauri = { version = "2.12.1", features = [] }
+tauri-plugin-log = "2"

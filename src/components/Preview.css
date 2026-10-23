@@ -111,10 +111,46 @@
 }
 
 .mermaid-block {
+  position: relative;
   display: flex;
   justify-content: center;
   margin: 1em 0;
   overflow-x: auto;
+}
+
+.mermaid-expand-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.mermaid-block:hover .mermaid-expand-btn,
+.mermaid-expand-btn:focus-visible {
+  opacity: 1;
+}
+
+.mermaid-expand-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+/* telas touch não têm hover: botão sempre visível */
+@media (hover: none) {
+  .mermaid-expand-btn {
+    opacity: 1;
+  }
 }
 
 .mermaid-block:not(.mermaid-block-rendered):not(.mermaid-block-error)::before {
