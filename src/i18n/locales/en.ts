@@ -18,6 +18,8 @@ export const en = {
     editor: {
       attachImage: 'Add image',
       emptyPlaceholder: 'Click to start writing...',
+      saveAndSync: 'Save and sync this note',
+      synced: 'Synced',
     },
     topBar: {
       theme: 'Theme',
@@ -202,6 +204,14 @@ export const en = {
       pullHint: 'The file "{{path}}" has unsaved local changes and was also changed on GitHub. Choose which version to keep.',
       keepLocal: 'Keep local version',
       useRemote: 'Use remote version',
+    },
+    mermaid: {
+      expand: 'Open diagram fullscreen',
+      viewer: 'Diagram viewer',
+      zoomIn: 'Zoom in (+)',
+      zoomOut: 'Zoom out (-)',
+      fit: 'Fit to screen (0)',
+      close: 'Close (Esc)',
     },
     backlinks: {
       title: 'Links and backlinks',

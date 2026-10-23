@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { MERMAID_PLACEHOLDER_CLASS, renderMarkdown } from '../lib/markdown'
+import { Check, CloudUpload, RefreshCw } from 'lucide-react'
+import { renderMarkdown } from '../lib/markdown'
+import { renderMermaidBlocks } from '../lib/mermaid'
 import { splitIntoBlocks, joinBlocks, type Block } from '../lib/blocks'
 import { splitPreset, useThemeStore } from '../store/useThemeStore'
 import { useVaultStore } from '../store/useVaultStore'
 import { useTabsStore } from '../store/useTabsStore'
 import './BlockEditor.css'
 
-let mermaidIdCounter = 0
-
 interface BlockEditorProps {
+  path: string
   content: string
   onChange: (content: string) => void
 }
@@ -20,12 +21,16 @@ interface BlockEditorProps {
  * por um textarea com o markdown bruto; ao sair do bloco (blur/Escape/Ctrl+Enter), volta a
  * renderizar. O resto da nota nunca sai do modo leitura durante a edição de um bloco.
  */
-export function BlockEditor({ content, onChange }: BlockEditorProps) {
+export function BlockEditor({ path, content, onChange }: BlockEditorProps) {
   const { t } = useTranslation()
   const notes = useVaultStore((s) => s.notes)
   const createNote = useVaultStore((s) => s.createNote)
   const openTab = useTabsStore((s) => s.openTab)
   const getAttachmentUrl = useVaultStore((s) => s.getAttachmentUrl)
+  const githubConfig = useVaultStore((s) => s.githubConfig)
+  const pushNote = useVaultStore((s) => s.pushNote)
+  const syncStatus = useVaultStore((s) => s.syncStatus)
+  const isDirty = notes.find((n) => n.path === path)?.dirty ?? false
   // força um novo render quando um anexo termina de carregar (o cache vive fora do React state
   // normal); a própria leitura do hook já dispara o re-render, só precisamos "usar" o valor
   useVaultStore((s) => s.attachmentCache)
@@ -116,44 +121,34 @@ export function BlockEditor({ content, onChange }: BlockEditorProps) {
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
-    const mermaidBlocks = container.querySelectorAll<HTMLElement>(`.${MERMAID_PLACEHOLDER_CLASS}`)
-    if (mermaidBlocks.length === 0) return
+    // content/editingIndex disparam re-render do HTML, então os placeholders precisam ser renderizados de novo
+    return renderMermaidBlocks(container, mode, t('mermaid.expand'))
+  }, [content, editingIndex, mode, t])
 
-    let cancelled = false
-    import('mermaid').then(({ default: mermaid }) => {
-      if (cancelled) return
-      mermaid.initialize({
-        startOnLoad: false,
-        securityLevel: 'strict',
-        theme: mode === 'dark' ? 'dark' : 'default',
-      })
-      mermaidBlocks.forEach(async (block) => {
-        const code = block.dataset.mermaidCode ? decodeURIComponent(block.dataset.mermaidCode) : ''
-        if (!code) return
-        const id = `mermaid-${mermaidIdCounter++}`
-        try {
-          const { svg } = await mermaid.render(id, code)
-          if (cancelled) return
-          block.innerHTML = svg
-          block.classList.add('mermaid-block-rendered')
-        } catch (err) {
-          if (cancelled) return
-          const message = err instanceof Error ? err.message : 'Erro ao renderizar diagrama'
-          block.textContent = message
-          block.classList.add('mermaid-block-error')
-        }
-      })
-    })
-    return () => {
-      cancelled = true
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- attachmentCacheVersion/editingIndex disparam re-render do HTML
-  }, [content, editingIndex, mode])
+  const isSyncingThisNote = syncStatus === 'syncing'
+  const saveSyncButton = githubConfig && (
+    <button
+      type="button"
+      className={`editor-save-btn block-editor-save-btn ${isDirty ? 'dirty' : ''}`}
+      title={isDirty ? t('editor.saveAndSync') : t('editor.synced')}
+      onClick={() => pushNote(path)}
+      disabled={!isDirty || isSyncingThisNote}
+    >
+      {isSyncingThisNote ? (
+        <RefreshCw size={16} strokeWidth={1.75} className="spin" />
+      ) : isDirty ? (
+        <CloudUpload size={16} strokeWidth={1.75} />
+      ) : (
+        <Check size={16} strokeWidth={1.75} />
+      )}
+    </button>
+  )
 
   if (blocks.length === 0) {
     // nota vazia: um único bloco "fantasma" clicável para começar a escrever
     return (
       <div className="block-editor-container">
+        {saveSyncButton}
         <div className="preview-content block-editor-content">
           <div
             className="block-editor-empty"
@@ -186,6 +181,7 @@ export function BlockEditor({ content, onChange }: BlockEditorProps) {
 
   return (
     <div className="block-editor-container" ref={containerRef} onClick={handleContainerClick}>
+      {saveSyncButton}
       <div className="preview-content block-editor-content">
         {blocks.map((block, index) => {
           if (editingIndex === index) {

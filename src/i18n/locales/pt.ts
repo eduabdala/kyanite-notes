@@ -18,6 +18,8 @@ export const pt = {
     editor: {
       attachImage: 'Adicionar imagem',
       emptyPlaceholder: 'Clique para começar a escrever...',
+      saveAndSync: 'Salvar e sincronizar esta nota',
+      synced: 'Sincronizada',
     },
     topBar: {
       theme: 'Tema',
@@ -203,6 +205,14 @@ export const pt = {
       pullHint: 'O arquivo "{{path}}" tem mudanças locais não enviadas e também foi alterado no GitHub. Escolha qual versão manter.',
       keepLocal: 'Manter versão local',
       useRemote: 'Usar versão remota',
+    },
+    mermaid: {
+      expand: 'Abrir diagrama em tela cheia',
+      viewer: 'Visualizador de diagrama',
+      zoomIn: 'Aumentar zoom (+)',
+      zoomOut: 'Diminuir zoom (-)',
+      fit: 'Ajustar à tela (0)',
+      close: 'Fechar (Esc)',
     },
     backlinks: {
       title: 'Links e backlinks',

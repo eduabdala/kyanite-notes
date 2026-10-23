@@ -22,6 +22,7 @@ import { BacklinksPanel } from './components/BacklinksPanel'
 import { ResizeHandle } from './components/ResizeHandle'
 import { ConfirmDialog } from './components/ConfirmDialog'
 import { ConflictDialog } from './components/ConflictDialog'
+import { MermaidViewer } from './components/MermaidViewer'
 import { useVaultStore } from './store/useVaultStore'
 import { useTabsStore } from './store/useTabsStore'
 import { useUiStore } from './store/useUiStore'
@@ -279,6 +280,7 @@ function App() {
                 {viewMode === 'live' && (
                   <BlockEditor
                     key={activeNote.path}
+                    path={activeNote.path}
                     content={activeNote.content}
                     onChange={(content) => updateNoteContent(activeNote.path, content)}
                   />
@@ -343,6 +345,7 @@ function App() {
       </div>
       <ConfirmDialog />
       <ConflictDialog />
+      <MermaidViewer />
     </div>
   )
 }
