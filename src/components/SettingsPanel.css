@@ -435,3 +435,48 @@
   font-size: 0.78rem;
   color: var(--text-secondary);
 }
+
+.settings-row-label label {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.font-size-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.font-size-control input[type='range'] {
+  width: 120px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.font-size-value {
+  min-width: 36px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.font-size-reset {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.zoom-step-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 6px;
+}
+
+.zoom-step-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.auto-sync-row {
+  margin-top: 12px;
+}

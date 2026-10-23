@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Menu, Puzzle, LayoutGrid, Timer, RefreshCw, CalendarDays, AlertTriangle } from 'lucide-react'
-import { useVaultStore } from '../store/useVaultStore'
+import { pendingChangesCount, useVaultStore } from '../store/useVaultStore'
+import { IS_CODE_WORKSPACE, takeConnectHint } from '../lib/workspace'
 import { overdueTasks } from '../lib/agenda'
 import { useTabsStore } from '../store/useTabsStore'
 import { useUiStore } from '../store/useUiStore'
@@ -23,13 +24,14 @@ export function TopBar({ onOpenSidebar }: TopBarProps) {
   const githubConfig = useVaultStore((s) => s.githubConfig)
   const syncStatus = useVaultStore((s) => s.syncStatus)
   const syncError = useVaultStore((s) => s.syncError)
-  const notes = useVaultStore((s) => s.notes)
+  const dirtyCount = useVaultStore(pendingChangesCount)
   const syncNow = useVaultStore((s) => s.syncNow)
   const disconnectGitHub = useVaultStore((s) => s.disconnectGitHub)
 
-  const kanbanEnabled = useVaultStore((s) => s.isPluginEnabled('kanban'))
-  const pomodoroEnabled = useVaultStore((s) => s.isPluginEnabled('pomodoro'))
-  const agendaEnabled = useVaultStore((s) => s.isPluginEnabled('agenda'))
+  // plugins (Kanban, Pomodoro, Agenda) são recursos de vaults de notas
+  const kanbanEnabled = useVaultStore((s) => s.isPluginEnabled('kanban')) && !IS_CODE_WORKSPACE
+  const pomodoroEnabled = useVaultStore((s) => s.isPluginEnabled('pomodoro')) && !IS_CODE_WORKSPACE
+  const agendaEnabled = useVaultStore((s) => s.isPluginEnabled('agenda')) && !IS_CODE_WORKSPACE
   const agendaCollection = useVaultStore((s) => s.agendaCollection)
   const activePath = useTabsStore((s) => s.activePath)
   const requestViewMode = useUiStore((s) => s.requestViewMode)
@@ -47,11 +49,12 @@ export function TopBar({ onOpenSidebar }: TopBarProps) {
     ? overdueTasks(agendaCollection, new Date(nowTick)).length
     : 0
 
-  const [showModal, setShowModal] = useState(false)
+  // workspace recém-criado: abre a conexão direto (com o token do workspace anterior, se escolhido)
+  const [connectHint] = useState(() => (githubConfig ? null : takeConnectHint()))
+  const [showModal, setShowModal] = useState(Boolean(connectHint))
   const [pluginsOpen, setPluginsOpen] = useState(false)
   const pluginsRef = useRef<HTMLDivElement>(null)
 
-  const dirtyCount = notes.filter((n) => n.dirty).length
   const anyPluginEnabled = kanbanEnabled || pomodoroEnabled || agendaEnabled
   // no mobile o Pomodoro some do menu (sessão de foco contínua não combina com consulta
   // rápida); se nem Kanban nem Agenda estiverem habilitados, o botão de plugins não teria
@@ -172,6 +175,14 @@ export function TopBar({ onOpenSidebar }: TopBarProps) {
             <span className="sync-dot sync-dot-error" title={t('topBar.syncError')} />
           </>
         )}
+        {syncStatus === 'offline' && (
+          <>
+            <span className="sync-status sync-text" title={t('topBar.offlineHint')}>
+              {t('topBar.offline')}
+            </span>
+            <span className="sync-dot sync-dot-pending" title={t('topBar.offlineHint')} />
+          </>
+        )}
         {syncStatus === 'syncing' && (
           <>
             <span className="sync-status sync-text">{t('topBar.syncing')}</span>
@@ -217,7 +228,9 @@ export function TopBar({ onOpenSidebar }: TopBarProps) {
         )}
       </div>
 
-      {showModal && <GitHubConnectModal onClose={() => setShowModal(false)} />}
+      {showModal && (
+        <GitHubConnectModal initialToken={connectHint?.token ?? null} onClose={() => setShowModal(false)} />
+      )}
     </header>
   )
 }

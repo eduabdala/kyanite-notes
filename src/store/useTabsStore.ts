@@ -1,6 +1,13 @@
 import { create } from 'zustand'
+import { wsKey } from '../lib/workspace'
 
-const TABS_KEY = 'kyanite:tabs'
+const TABS_KEY = wsKey('tabs')
+
+/** chamado ao abrir/ativar uma aba (o workspace de código usa para fechar o diff aberto) */
+let onActivate: (() => void) | null = null
+export function setOnTabActivate(fn: () => void) {
+  onActivate = fn
+}
 
 interface TabsState {
   /** paths das notas abertas em abas, na ordem de exibição */
@@ -41,6 +48,7 @@ export const useTabsStore = create<TabsState>((set, get) => {
       const { openPaths } = get()
       const next = openPaths.includes(path) ? openPaths : [...openPaths, path]
       persist(next, path)
+      onActivate?.()
       set({ openPaths: next, activePath: path })
     },
 
@@ -62,6 +70,7 @@ export const useTabsStore = create<TabsState>((set, get) => {
 
     setActiveTab: (path) => {
       persist(get().openPaths, path)
+      onActivate?.()
       set({ activePath: path })
     },
 

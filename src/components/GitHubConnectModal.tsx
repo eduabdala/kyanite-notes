@@ -6,6 +6,8 @@ import './GitHubConnectModal.css'
 
 interface Props {
   onClose: () => void
+  /** token de outro workspace a reaproveitar: pula o login e vai direto para a lista de repos */
+  initialToken?: string | null
 }
 
 const CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID
@@ -26,7 +28,7 @@ function startOAuthLogin() {
   window.location.href = url.toString()
 }
 
-export function GitHubConnectModal({ onClose }: Props) {
+export function GitHubConnectModal({ onClose, initialToken }: Props) {
   const { t } = useTranslation()
   const connectGitHub = useVaultStore((s) => s.connectGitHub)
   const pullFromGitHub = useVaultStore((s) => s.pullFromGitHub)
@@ -56,6 +58,26 @@ export function GitHubConnectModal({ onClose }: Props) {
     if (lower.includes('bad credentials')) return t('githubModal.errors.badCredentials')
     return rawError
   }
+
+  // token reaproveitado de outro workspace: lista os repos acessíveis para escolher
+  useEffect(() => {
+    if (!initialToken || existingConfig) return
+    setLoading(true)
+    listUserRepos(initialToken)
+      .then((userRepos) => {
+        if (userRepos.length === 0) return
+        setOauthToken(initialToken)
+        setRepos(userRepos)
+        setSelectedRepo(`${userRepos[0].owner}/${userRepos[0].repo}`)
+      })
+      .catch(() => {
+        // token sem permissão para listar (ex: fine-grained): cai no formulário manual
+        setToken(initialToken)
+        setShowManual(true)
+      })
+      .finally(() => setLoading(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // ao voltar do GitHub com ?code=..., troca pelo access_token via worker
   useEffect(() => {

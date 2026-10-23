@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { wsKey } from '../lib/workspace'
 
 /** Timer Pomodoro global: o estado vive aqui (não no componente) para o timer continuar
  * rodando mesmo se o widget for escondido, e para o atalho da TopBar poder abri-lo/fechá-lo.
@@ -32,7 +33,8 @@ export interface FocusSession {
 
 const DEFAULT_DURATIONS: PomodoroDurations = { work: 25, break: 5 }
 const DURATIONS_KEY = 'kyanite:pomodoro-durations'
-const SESSIONS_KEY = 'kyanite:pomodoro-sessions'
+// sessões referenciam notas/cartões do workspace, então ficam separadas por workspace
+const SESSIONS_KEY = wsKey('pomodoro-sessions')
 
 function loadDurations(): PomodoroDurations {
   const raw = localStorage.getItem(DURATIONS_KEY)

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
+import { wsKey } from '../lib/workspace'
 
-const COLLAPSED_KEY = 'kyanite:collapsed-folders'
+const COLLAPSED_KEY = wsKey('collapsed-folders')
 
 function loadCollapsed(): Set<string> {
   const raw = localStorage.getItem(COLLAPSED_KEY)

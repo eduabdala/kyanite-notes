@@ -236,6 +236,17 @@ body,
   width: 100%;
 }
 
+/* zoom da interface na versão web (no desktop o Tauri usa o zoom nativo do webview e
+   --ui-zoom fica em 1). Com zoom, filhos com height: 100% continuam ocupando a tela toda */
+#root {
+  zoom: var(--ui-zoom, 1);
+}
+
+/* tamanho dos ícones configurável: zoom mantém proporção e alinhamento com o tamanho original */
+svg.app-icon {
+  zoom: var(--icon-scale, 1);
+}
+
 body {
   background: var(--bg-primary);
   color: var(--text-primary);
@@ -247,7 +258,8 @@ button {
 }
 
 .app-layout {
-  height: 100vh;
+  /* 100% em vez de 100vh: vh é multiplicado pelo zoom e deixaria uma faixa vazia embaixo */
+  height: 100%;
   display: flex;
   flex-direction: column;
 }

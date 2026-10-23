@@ -1,7 +1,10 @@
-/** Configuração de plugins do vault: um arquivo `.kyanite/config.json` versionado no próprio
- * repositório, para que as preferências (quais plugins ficam ativos) sejam compartilhadas entre
- * todos os dispositivos que sincronizam aquele repo — diferente do resto das preferências do
- * Kyanite, que hoje vivem só no localStorage de cada dispositivo. */
+/** Configuração do vault: um arquivo `.kyanite/config.json` versionado no próprio repositório,
+ * para que plugins ativos e preferências (tema, idioma, fonte, ícones, Pomodoro) sejam
+ * compartilhados entre todos os dispositivos que sincronizam aquele repo. Estado de layout
+ * (larguras, painéis recolhidos, modo de visualização) continua só no localStorage. */
+
+import { parsePreferences, type Preferences } from './preferences'
+import { wsKey } from './workspace'
 
 export const PLUGIN_CONFIG_PATH = '.kyanite/config.json'
 
@@ -9,6 +12,8 @@ export type PluginId = 'kanban' | 'pomodoro' | 'agenda'
 
 export interface PluginConfig {
   plugins: Record<PluginId, boolean>
+  /** ausente em configs antigos; nesse caso cada dispositivo mantém suas preferências locais */
+  preferences?: Partial<Preferences>
 }
 
 export const DEFAULT_PLUGIN_CONFIG: PluginConfig = {
@@ -19,18 +24,22 @@ export const DEFAULT_PLUGIN_CONFIG: PluginConfig = {
   },
 }
 
-const LOCAL_KEY = 'kyanite:plugin-config'
+const LOCAL_KEY = wsKey('plugin-config')
+
+function fromParsed(parsed: unknown): PluginConfig {
+  const obj = (parsed ?? {}) as { plugins?: Partial<Record<PluginId, boolean>>; preferences?: unknown }
+  const preferences = parsePreferences(obj.preferences)
+  return {
+    plugins: { ...DEFAULT_PLUGIN_CONFIG.plugins, ...obj.plugins },
+    ...(preferences ? { preferences } : {}),
+  }
+}
 
 /** Config local (usada como fallback quando não há repo conectado, ou antes do primeiro pull) */
 export function loadLocalPluginConfig(): PluginConfig {
   const raw = localStorage.getItem(LOCAL_KEY)
   if (!raw) return DEFAULT_PLUGIN_CONFIG
-  try {
-    const parsed = JSON.parse(raw)
-    return { plugins: { ...DEFAULT_PLUGIN_CONFIG.plugins, ...parsed.plugins } }
-  } catch {
-    return DEFAULT_PLUGIN_CONFIG
-  }
+  return parsePluginConfig(raw)
 }
 
 export function saveLocalPluginConfig(config: PluginConfig) {
@@ -41,8 +50,7 @@ export function saveLocalPluginConfig(config: PluginConfig) {
  * (config antigo ou parcialmente escrito manualmente por um usuário não deve quebrar o app) */
 export function parsePluginConfig(raw: string): PluginConfig {
   try {
-    const parsed = JSON.parse(raw)
-    return { plugins: { ...DEFAULT_PLUGIN_CONFIG.plugins, ...parsed.plugins } }
+    return fromParsed(JSON.parse(raw))
   } catch {
     return DEFAULT_PLUGIN_CONFIG
   }
