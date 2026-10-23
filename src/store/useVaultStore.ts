@@ -73,7 +73,7 @@ import {
 } from '../lib/syncState'
 import type { Preferences } from '../lib/preferences'
 import { useConflictStore } from './useConflictStore'
-import { useTabsStore } from './useTabsStore'
+import { setTabDirtyCheck, useTabsStore } from './useTabsStore'
 import type { GitHubConfig, LinkGraph, Note, TreeNode } from '../lib/types'
 
 type SyncStatus = 'idle' | 'syncing' | 'error' | 'auth-error' | 'offline'
@@ -775,7 +775,7 @@ export const useVaultStore = create<VaultState>((set, get) => {
         dirty: true,
       }
       setNotes([...get().notes, note])
-      useTabsStore.getState().openTab(path)
+      useTabsStore.getState().openTab(path, true)
       if (get().autoSync) get().schedulePush()
       return note
     },
@@ -784,6 +784,8 @@ export const useVaultStore = create<VaultState>((set, get) => {
       setNotes(
         get().notes.map((n) => (n.path === path ? { ...n, content, dirty: true, updatedAt: Date.now() } : n))
       )
+      // editar fixa a aba: ela não é mais substituída ao abrir outro arquivo
+      useTabsStore.getState().pinTab(path)
       if (get().autoSync) get().schedulePush()
     },
 
@@ -1176,6 +1178,8 @@ export const useVaultStore = create<VaultState>((set, get) => {
     },
   }
 })
+
+setTabDirtyCheck((path) => useVaultStore.getState().notes.some((n) => n.path === path && n.dirty))
 
 /** Alterações de arquivos para o painel de alterações (sem marcadores de pasta e `.kyanite/`) */
 export function listPendingChanges(s: Pick<VaultState, 'notes' | 'pendingDeletes'>): PendingChange[] {

@@ -295,6 +295,10 @@ export const pt = {
       fit: 'Ajustar à tela (0)',
       close: 'Fechar (Esc)',
     },
+    tabs: {
+      close: 'Fechar aba',
+      previewHint: 'pré-visualização (duplo clique para manter aberta)',
+    },
     backlinks: {
       title: 'Links e backlinks',
       links: 'Links ({{count}})',

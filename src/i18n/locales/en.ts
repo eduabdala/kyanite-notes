@@ -294,6 +294,10 @@ export const en = {
       fit: 'Fit to screen (0)',
       close: 'Close (Esc)',
     },
+    tabs: {
+      close: 'Close tab',
+      previewHint: 'preview (double-click to keep open)',
+    },
     backlinks: {
       title: 'Links and backlinks',
       links: 'Links ({{count}})',
