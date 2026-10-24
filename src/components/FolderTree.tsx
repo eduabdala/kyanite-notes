@@ -217,6 +217,7 @@ function NoteNode({ node, depth }: { node: TreeNode; depth: number }) {
       className={`tree-row tree-note-row ${node.path === activePath ? 'active' : ''}`}
       style={{ paddingLeft: `${depth * 14 + 24}px` }}
       onClick={() => openTab(node.path)}
+      onDoubleClick={() => openTab(node.path, true)}
       draggable
       onDragStart={handleDragStart}
     >

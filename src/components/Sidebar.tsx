@@ -1,11 +1,17 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { FolderPlus, FilePlus, X, PanelLeftClose, Settings, Tag, Folder } from 'lucide-react'
+import { FolderPlus, FilePlus, X, PanelLeftClose, Settings, Tag, Folder, Files, Search, GitCommitVertical } from 'lucide-react'
+import { SearchPanel } from './SearchPanel'
+import { ChangesPanel } from './ChangesPanel'
+import { useIdeStore, type IdePanel } from '../store/useIdeStore'
+import { listPendingChanges } from '../store/useVaultStore'
 import { useVaultStore } from '../store/useVaultStore'
 import { useTabsStore } from '../store/useTabsStore'
 import { useCreationStore } from '../store/useCreationStore'
 import { useConfirmStore } from '../store/useConfirmStore'
 import { FolderTree } from './FolderTree'
+import { WorkspaceSwitcher } from './WorkspaceSwitcher'
+import { IS_CODE_WORKSPACE } from '../lib/workspace'
 import { TagTree } from './TagTree'
 import { SettingsPanel } from './SettingsPanel'
 import { APP_VERSION } from '../lib/version'
@@ -33,12 +39,23 @@ export function Sidebar({ onCollapse }: SidebarProps) {
   const [rootDragOver, setRootDragOver] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [panel, setPanel] = useState<'folders' | 'tags'>('folders')
+  const idePanel = useIdeStore((s) => s.panel)
+  const setIdePanel = useIdeStore((s) => s.setPanel)
+  const pendingDeletes = useVaultStore((s) => s.pendingDeletes)
+  const changeCount = useMemo(
+    () => (IS_CODE_WORKSPACE ? listPendingChanges({ notes, pendingDeletes }).length : 0),
+    [notes, pendingDeletes]
+  )
 
   const filtered = useMemo(() => {
     if (!query.trim()) return null
     const q = query.toLowerCase()
+    // em código, busca também pelo caminho (ex: "components/button"); conteúdo só dos arquivos já baixados
     return notes.filter(
-      (n) => n.name.toLowerCase().includes(q) || n.content.toLowerCase().includes(q)
+      (n) =>
+        n.name.toLowerCase().includes(q) ||
+        (IS_CODE_WORKSPACE && n.path.toLowerCase().includes(q)) ||
+        n.content.toLowerCase().includes(q)
     )
   }, [notes, query])
 
@@ -66,8 +83,45 @@ export function Sidebar({ onCollapse }: SidebarProps) {
     if (path) moveNote(path, '')
   }
 
+  const idePanels: { id: IdePanel; label: string; icon: React.ReactNode; badge?: number }[] = [
+    { id: 'explorer', label: t('ide.explorer'), icon: <Files size={15} strokeWidth={1.75} /> },
+    { id: 'search', label: t('ide.search'), icon: <Search size={15} strokeWidth={1.75} /> },
+    {
+      id: 'changes',
+      label: t('ide.sourceControl'),
+      icon: <GitCommitVertical size={15} strokeWidth={1.75} />,
+      badge: changeCount,
+    },
+  ]
+
+  const footer = (
+    <div className="sidebar-footer">
+      <button className="settings-trigger" onClick={() => setShowSettings(true)} title={t('settings.title')}>
+        <Settings size={14} strokeWidth={1.75} />
+        <span>{t('settings.title')}</span>
+      </button>
+      <span className="version-tag">v{APP_VERSION}</span>
+    </div>
+  )
+
+  if (IS_CODE_WORKSPACE && idePanel !== 'explorer') {
+    return (
+      <aside className="sidebar">
+        <WorkspaceSwitcher />
+        <IdeTabs panels={idePanels} active={idePanel} onSelect={setIdePanel} onCollapse={onCollapse} />
+        {idePanel === 'search' ? <SearchPanel /> : <ChangesPanel />}
+        {footer}
+        {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
+      </aside>
+    )
+  }
+
   return (
     <aside className="sidebar">
+      <WorkspaceSwitcher />
+      {IS_CODE_WORKSPACE && (
+        <IdeTabs panels={idePanels} active={idePanel} onSelect={setIdePanel} onCollapse={onCollapse} />
+      )}
       <div className="sidebar-header">
         <input
           className="sidebar-search"
@@ -85,16 +139,18 @@ export function Sidebar({ onCollapse }: SidebarProps) {
         <button
           className="icon-btn"
           onClick={() => creation.start('note', '')}
-          title={t('sidebar.newNote')}
+          title={IS_CODE_WORKSPACE ? t('sidebar.newFile') : t('sidebar.newNote')}
         >
           <FilePlus size={16} strokeWidth={1.75} />
         </button>
-        <button className="icon-btn" onClick={onCollapse} title={t('sidebar.collapse')}>
-          <PanelLeftClose size={16} strokeWidth={1.75} />
-        </button>
+        {!IS_CODE_WORKSPACE && (
+          <button className="icon-btn" onClick={onCollapse} title={t('sidebar.collapse')}>
+            <PanelLeftClose size={16} strokeWidth={1.75} />
+          </button>
+        )}
       </div>
 
-      {!filtered && (
+      {!filtered && !IS_CODE_WORKSPACE && (
         <div className="sidebar-panel-toggle">
           <button
             className={panel === 'folders' ? 'active' : ''}
@@ -152,19 +208,46 @@ export function Sidebar({ onCollapse }: SidebarProps) {
         </div>
       )}
 
-      <div className="sidebar-footer">
-        <button
-          className="settings-trigger"
-          onClick={() => setShowSettings(true)}
-          title={t('settings.title')}
-        >
-          <Settings size={14} strokeWidth={1.75} />
-          <span>{t('settings.title')}</span>
-        </button>
-        <span className="version-tag">v{APP_VERSION}</span>
-      </div>
+      {footer}
 
       {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
     </aside>
+  )
+}
+
+/** abas Explorer / Busca / Alterações do workspace de código */
+function IdeTabs({
+  panels,
+  active,
+  onSelect,
+  onCollapse,
+}: {
+  panels: { id: IdePanel; label: string; icon: React.ReactNode; badge?: number }[]
+  active: IdePanel
+  onSelect: (panel: IdePanel) => void
+  onCollapse: () => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className="ide-tabs" role="tablist">
+      {panels.map((p) => (
+        <button
+          key={p.id}
+          type="button"
+          role="tab"
+          aria-selected={active === p.id}
+          className={`ide-tab ${active === p.id ? 'active' : ''}`}
+          onClick={() => onSelect(p.id)}
+          title={p.label}
+          aria-label={p.label}
+        >
+          {p.icon}
+          {!!p.badge && <span className="ide-tab-badge">{p.badge}</span>}
+        </button>
+      ))}
+      <button type="button" className="ide-tab ide-tab-collapse" onClick={onCollapse} title={t('sidebar.collapse')}>
+        <PanelLeftClose size={15} strokeWidth={1.75} />
+      </button>
+    </div>
   )
 }

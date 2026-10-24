@@ -10,7 +10,7 @@
   margin: 0 auto;
   padding: 24px 16px;
   color: var(--text-primary);
-  font-size: 15px;
+  font-size: var(--note-font-size, 15px);
   line-height: 1.65;
 }
 

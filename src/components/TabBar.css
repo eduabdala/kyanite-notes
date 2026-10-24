@@ -32,6 +32,11 @@
   box-shadow: inset 0 -2px 0 var(--accent);
 }
 
+/* aba de pré-visualização: em itálico, é substituída ao abrir outro arquivo */
+.tab.preview .tab-label {
+  font-style: italic;
+}
+
 .tab-label {
   display: flex;
   align-items: center;

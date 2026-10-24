@@ -1,6 +1,7 @@
 import type { Note, TreeNode } from './types'
+import { IS_CODE_WORKSPACE, wsKey } from './workspace'
 
-const NOTES_KEY = 'kyanite:notes'
+const NOTES_KEY = wsKey('notes')
 
 /** Persistência local das notas (cache offline-first). Sync com GitHub é feito separadamente. */
 export function loadLocalNotes(): Note[] {
@@ -9,7 +10,12 @@ export function loadLocalNotes(): Note[] {
 }
 
 export function saveLocalNotes(notes: Note[]) {
-  localStorage.setItem(NOTES_KEY, JSON.stringify(notes))
+  try {
+    localStorage.setItem(NOTES_KEY, JSON.stringify(notes))
+  } catch (err) {
+    // cota do localStorage estourada (repo muito grande): mantém em memória e avisa no console
+    console.warn('Não foi possível salvar as notas localmente', err)
+  }
 }
 
 export function pathToName(path: string): string {
@@ -17,12 +23,19 @@ export function pathToName(path: string): string {
   return fileName.replace(/\.md$/, '')
 }
 
+/** em workspaces de código o nome já inclui a extensão (ex: "index.ts"); em notas, vira "nome.md" */
 export function nameToPath(name: string, folder = ''): string {
   const safe = name.trim()
-  return folder ? `${folder}/${safe}.md` : `${safe}.md`
+  const file = IS_CODE_WORKSPACE ? safe : `${safe}.md`
+  return folder ? `${folder}/${file}` : file
 }
 
-const FOLDERS_KEY = 'kyanite:folders'
+/** nome do arquivo (com extensão) de um path */
+export function fileNameOf(path: string): string {
+  return path.split('/').pop() ?? path
+}
+
+const FOLDERS_KEY = wsKey('folders')
 /** nome do arquivo marcador usado para pastas vazias sobreviverem no git (que não versiona diretórios vazios) */
 export const FOLDER_MARKER = '.folder'
 

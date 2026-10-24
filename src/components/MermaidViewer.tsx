@@ -64,6 +64,8 @@ export function MermaidViewer() {
   useEffect(() => {
     if (!svg) return
     function onKey(e: KeyboardEvent) {
+      // Ctrl/Cmd +/-/0 é o zoom da interface (useAppearanceStore); aqui só teclas sem modificador
+      if (e.ctrlKey || e.metaKey) return
       if (e.key === 'Escape') close()
       else if (e.key === '+' || e.key === '=') zoomAt(1.2)
       else if (e.key === '-') zoomAt(1 / 1.2)

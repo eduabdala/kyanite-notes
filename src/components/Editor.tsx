@@ -2,13 +2,17 @@ import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ImagePlus, Check, CloudUpload, RefreshCw } from 'lucide-react'
 import { EditorView, keymap, placeholder } from '@codemirror/view'
-import { EditorState } from '@codemirror/state'
-import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
+import { Compartment, EditorState } from '@codemirror/state'
+import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
 import { searchKeymap } from '@codemirror/search'
 import { closeBrackets, closeBracketsKeymap, completionKeymap } from '@codemirror/autocomplete'
 import { wikilinkAutocomplete } from '../lib/wikilinkAutocomplete'
+import { codeEditorExtensions, loadLanguageFor } from '../lib/codeEditor'
+import { IS_CODE_WORKSPACE } from '../lib/workspace'
+import { fileNameOf } from '../lib/vault'
 import { useVaultStore } from '../store/useVaultStore'
+import { useIdeStore } from '../store/useIdeStore'
 import './Editor.css'
 
 interface EditorProps {
@@ -68,16 +72,45 @@ export function Editor({
   onScrollRef.current = onScroll
   getNoteNamesRef.current = getNoteNames
 
-  // recria a instância do editor quando o arquivo ativo muda
+  // pedido de pular para uma linha (vindo da busca no repo)
+  const reveal = useIdeStore((s) => (s.reveal?.path === path ? s.reveal : null))
+  const clearReveal = useIdeStore((s) => s.clearReveal)
   useEffect(() => {
-    if (!containerRef.current) return
+    const view = viewRef.current
+    if (!reveal || !view) return
+    const lineNo = Math.min(Math.max(1, reveal.line), view.state.doc.lines)
+    const line = view.state.doc.line(lineNo)
+    view.dispatch({ selection: { anchor: line.from, head: line.to }, scrollIntoView: true })
+    view.focus()
+    clearReveal()
+  })
+
+  // workspaces de código: arquivo ainda não baixado é buscado ao abrir
+  const isUnloaded = useVaultStore((s) => s.notes.find((n) => n.path === path)?.unloaded ?? false)
+  const loadFileContent = useVaultStore((s) => s.loadFileContent)
+  useEffect(() => {
+    if (isUnloaded) loadFileContent(path)
+  }, [isUnloaded, path, loadFileContent])
+
+  // recria a instância do editor quando o arquivo ativo muda (ou termina de carregar)
+  useEffect(() => {
+    if (!containerRef.current || isUnloaded) return
+
+    const languageCompartment = new Compartment()
+    const modeExtensions = IS_CODE_WORKSPACE
+      ? [codeEditorExtensions(), keymap.of([indentWithTab]), languageCompartment.of([])]
+      : [
+          wikilinkAutocomplete(() => getNoteNamesRef.current()),
+          markdown(),
+          placeholder('Comece a escrever...'),
+          EditorView.lineWrapping,
+        ]
 
     const state = EditorState.create({
       doc: content,
       extensions: [
         history(),
         closeBrackets(),
-        wikilinkAutocomplete(() => getNoteNamesRef.current()),
         keymap.of([
           // bloqueia o Ctrl+S nativo do browser; o sync real é feito pelo listener
           // global em App.tsx (cobre também quando o foco não está no editor)
@@ -88,16 +121,14 @@ export function Editor({
           ...historyKeymap,
           ...searchKeymap,
         ]),
-        markdown(),
-        placeholder('Comece a escrever...'),
-        EditorView.lineWrapping,
+        modeExtensions,
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             onChangeRef.current(update.state.doc.toString())
           }
         }),
         EditorView.theme({
-          '&': { height: '100%', fontSize: '15px', color: 'var(--text-primary)' },
+          '&': { height: '100%', fontSize: 'var(--note-font-size, 15px)', color: 'var(--text-primary)' },
           '.cm-scroller': { fontFamily: 'var(--font-mono)', overflow: 'auto' },
           '.cm-content': { padding: '24px 0', caretColor: 'var(--accent)' },
           '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--accent)', borderLeftWidth: '2px' },
@@ -105,7 +136,7 @@ export function Editor({
             backgroundColor: 'var(--selection-bg) !important',
           },
           '.cm-activeLine': { backgroundColor: 'rgba(255, 255, 255, 0.04)' },
-          '.cm-gutters': { display: 'none' },
+          ...(IS_CODE_WORKSPACE ? {} : { '.cm-gutters': { display: 'none' } }),
           '.cm-tooltip-autocomplete': {
             backgroundColor: 'var(--bg-secondary)',
             border: '1px solid var(--border-color)',
@@ -127,6 +158,14 @@ export function Editor({
 
     const view = new EditorView({ state, parent: containerRef.current })
     viewRef.current = view
+
+    // linguagem do arquivo carregada sob demanda (cada uma é um chunk separado no build)
+    let disposed = false
+    if (IS_CODE_WORKSPACE) {
+      loadLanguageFor(fileNameOf(path)).then((lang) => {
+        if (lang && !disposed) view.dispatch({ effects: languageCompartment.reconfigure(lang) })
+      })
+    }
 
     /** Insere um placeholder no cursor, sobe a imagem, e substitui pelo `![[nome]]` final
      * (ou remove o placeholder se o upload falhar). */
@@ -186,13 +225,14 @@ export function Editor({
     scroller.addEventListener('scroll', handleScroll)
 
     return () => {
+      disposed = true
       scroller.removeEventListener('scroll', handleScroll)
       view.dom.removeEventListener('paste', handlePaste)
       view.dom.removeEventListener('drop', handleDrop)
       view.destroy()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [path])
+  }, [path, isUnloaded])
 
   // aplica scroll externo (vindo do preview) sem disparar o próprio onScroll de volta
   useEffect(() => {
@@ -220,9 +260,11 @@ export function Editor({
   const isSyncingThisNote = syncStatus === 'syncing'
 
   return (
-    <div className="editor-container">
+    <div className={`editor-container ${IS_CODE_WORKSPACE ? 'editor-code' : ''}`}>
+      {isUnloaded && <div className="editor-loading">{t('editor.loadingFile')}</div>}
       <div className="editor-cm-mount" ref={containerRef} />
-      {githubConfig && (
+      {/* em código o envio é pelo painel de alterações (Ctrl+S abre o painel) */}
+      {githubConfig && !IS_CODE_WORKSPACE && (
         <button
           type="button"
           className={`editor-save-btn ${isDirty ? 'dirty' : ''}`}
@@ -239,14 +281,16 @@ export function Editor({
           )}
         </button>
       )}
-      <button
-        type="button"
-        className="editor-attach-btn"
-        title={t('editor.attachImage')}
-        onClick={() => fileInputRef.current?.click()}
-      >
-        <ImagePlus size={18} strokeWidth={1.75} />
-      </button>
+      {!IS_CODE_WORKSPACE && (
+        <button
+          type="button"
+          className="editor-attach-btn"
+          title={t('editor.attachImage')}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <ImagePlus size={18} strokeWidth={1.75} />
+        </button>
+      )}
       <input
         ref={fileInputRef}
         type="file"

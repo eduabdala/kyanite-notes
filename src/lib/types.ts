@@ -10,6 +10,14 @@ export interface Note {
   updatedAt: number
   /** true se há mudanças locais não sincronizadas */
   dirty: boolean
+  /** workspaces de código: conteúdo ainda não baixado (é buscado ao abrir o arquivo) */
+  unloaded?: boolean
+  /** workspaces de código: binário ou texto grande demais; aparece na árvore mas não é editável */
+  binary?: boolean
+  /** renomeado/movido sem baixar o conteúdo: o push reaproveita esse blob pelo sha */
+  copyOf?: string
+  /** path anterior, enquanto um rename/move ainda não foi enviado (para o painel de alterações) */
+  movedFrom?: string
 }
 
 export interface GitHubConfig {

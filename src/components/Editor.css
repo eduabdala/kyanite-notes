@@ -21,6 +21,22 @@
   margin: 0 auto;
 }
 
+/* código: usa a largura toda e sem quebra de linha (rolagem horizontal) */
+.editor-code .cm-content {
+  max-width: none;
+  margin: 0;
+}
+
+.editor-code .editor-save-btn {
+  bottom: 16px;
+}
+
+.editor-loading {
+  padding: 24px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
 .editor-attach-btn {
   position: absolute;
   bottom: 16px;

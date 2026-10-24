@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { MonitorSmartphone, Palette, User, Languages, X, Info, GitBranch, MessageSquareWarning, Blocks } from 'lucide-react'
+import { MonitorSmartphone, Palette, User, Languages, X, Info, GitBranch, MessageSquareWarning, Blocks, Minus, Plus } from 'lucide-react'
 import { useVaultStore } from '../store/useVaultStore'
 import {
   STONES,
@@ -13,6 +13,15 @@ import { formatBytes, repoUsagePercent, REPO_USAGE_LIMIT_BYTES } from '../lib/by
 import { APP_VERSION, PROJECT_INFO } from '../lib/version'
 import type { PluginId } from '../lib/plugins'
 import { usePomodoroStore } from '../store/usePomodoroStore'
+import {
+  FONT_SIZE_DEFAULT,
+  FONT_SIZE_MAX,
+  FONT_SIZE_MIN,
+  ICON_SIZES,
+  ZOOM_DEFAULT,
+  ZOOM_LEVELS,
+  useAppearanceStore,
+} from '../store/useAppearanceStore'
 import { AppLogo } from './AppLogo'
 import './SettingsPanel.css'
 
@@ -33,9 +42,19 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const followSystem = useThemeStore((s) => s.followSystem)
   const setFollowSystem = useThemeStore((s) => s.setFollowSystem)
   const { mode: activeMode } = splitPreset(preset)
+  const fontSize = useAppearanceStore((s) => s.fontSize)
+  const setFontSize = useAppearanceStore((s) => s.setFontSize)
+  const iconSize = useAppearanceStore((s) => s.iconSize)
+  const setIconSize = useAppearanceStore((s) => s.setIconSize)
+  const zoom = useAppearanceStore((s) => s.zoom)
+  const setZoom = useAppearanceStore((s) => s.setZoom)
+  const zoomIn = useAppearanceStore((s) => s.zoomIn)
+  const zoomOut = useAppearanceStore((s) => s.zoomOut)
 
   const githubConfig = useVaultStore((s) => s.githubConfig)
   const disconnectGitHub = useVaultStore((s) => s.disconnectGitHub)
+  const autoSync = useVaultStore((s) => s.autoSync)
+  const setAutoSync = useVaultStore((s) => s.setAutoSync)
   const repoUsageBytes = useVaultStore((s) => s.repoUsageBytes)
   const pluginConfig = useVaultStore((s) => s.pluginConfig)
   const setPluginEnabled = useVaultStore((s) => s.setPluginEnabled)
@@ -138,6 +157,91 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                   </button>
                 </div>
               </div>
+
+              <div className="settings-row settings-row-inline">
+                <div className="settings-row-label">
+                  <span>{t('settings.zoom')}</span>
+                  <span className="settings-row-hint">{t('settings.zoomHint')}</span>
+                </div>
+                <div className="font-size-control">
+                  <button
+                    type="button"
+                    className="btn-secondary zoom-step-btn"
+                    onClick={zoomOut}
+                    disabled={zoom <= ZOOM_LEVELS[0]}
+                    aria-label={t('settings.zoomOut')}
+                    title={t('settings.zoomOut')}
+                  >
+                    <Minus size={14} strokeWidth={1.75} />
+                  </button>
+                  <span className="font-size-value">{Math.round(zoom * 100)}%</span>
+                  <button
+                    type="button"
+                    className="btn-secondary zoom-step-btn"
+                    onClick={zoomIn}
+                    disabled={zoom >= ZOOM_LEVELS[ZOOM_LEVELS.length - 1]}
+                    aria-label={t('settings.zoomIn')}
+                    title={t('settings.zoomIn')}
+                  >
+                    <Plus size={14} strokeWidth={1.75} />
+                  </button>
+                  {zoom !== ZOOM_DEFAULT && (
+                    <button
+                      type="button"
+                      className="btn-secondary font-size-reset"
+                      onClick={() => setZoom(ZOOM_DEFAULT)}
+                    >
+                      {t('settings.reset')}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="settings-row settings-row-inline">
+                <div className="settings-row-label">
+                  <label htmlFor="settings-font-size">{t('settings.fontSize')}</label>
+                  <span className="settings-row-hint">{t('settings.fontSizeHint')}</span>
+                </div>
+                <div className="font-size-control">
+                  <input
+                    id="settings-font-size"
+                    type="range"
+                    min={FONT_SIZE_MIN}
+                    max={FONT_SIZE_MAX}
+                    step={1}
+                    value={fontSize}
+                    onChange={(e) => setFontSize(Number(e.target.value))}
+                  />
+                  <span className="font-size-value">{fontSize}px</span>
+                  {fontSize !== FONT_SIZE_DEFAULT && (
+                    <button
+                      type="button"
+                      className="btn-secondary font-size-reset"
+                      onClick={() => setFontSize(FONT_SIZE_DEFAULT)}
+                    >
+                      {t('settings.reset')}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="settings-row settings-row-inline">
+                <div className="settings-row-label">
+                  <span>{t('settings.iconSize')}</span>
+                </div>
+                <div className="mode-toggle" role="group" aria-label={t('settings.iconSize')}>
+                  {ICON_SIZES.map((size) => (
+                    <button
+                      key={size}
+                      className={iconSize === size ? 'active' : ''}
+                      aria-pressed={iconSize === size}
+                      onClick={() => setIconSize(size)}
+                    >
+                      {t(`settings.iconSizes.${size}`)}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
@@ -180,6 +284,22 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     <button className="btn-secondary" onClick={disconnectGitHub}>
                       {t('topBar.disconnect')}
                     </button>
+                  </div>
+
+                  <div className="settings-row settings-row-inline plugin-row auto-sync-row">
+                    <div className="settings-row-label">
+                      <span id="settings-auto-sync-label">{t('settings.autoSync')}</span>
+                      <span className="settings-row-hint">{t('settings.autoSyncHint')}</span>
+                    </div>
+                    <label className="plugin-switch">
+                      <input
+                        type="checkbox"
+                        aria-labelledby="settings-auto-sync-label"
+                        checked={autoSync}
+                        onChange={(e) => setAutoSync(e.target.checked)}
+                      />
+                      <span className="plugin-switch-track" />
+                    </label>
                   </div>
 
                   <div className="settings-row repo-usage">

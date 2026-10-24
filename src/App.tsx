@@ -27,6 +27,12 @@ import { useVaultStore } from './store/useVaultStore'
 import { useTabsStore } from './store/useTabsStore'
 import { useUiStore } from './store/useUiStore'
 import { useAgendaAlerts } from './store/useAgendaAlerts'
+import { IS_CODE_WORKSPACE, isMarkdownPath } from './lib/workspace'
+import { DiffView } from './components/DiffView'
+import { FileViewer } from './components/FileViewer'
+import { QuickOpen, type PaletteCommand } from './components/QuickOpen'
+import { useIdeStore, type IdePanel } from './store/useIdeStore'
+import { useCreationStore } from './store/useCreationStore'
 
 type ViewMode = 'edit' | 'live' | 'preview' | 'split'
 
@@ -60,10 +66,18 @@ function App() {
   const notes = useVaultStore((s) => s.notes)
   const updateNoteContent = useVaultStore((s) => s.updateNoteContent)
   const githubConfig = useVaultStore((s) => s.githubConfig)
-  const pullFromGitHub = useVaultStore((s) => s.pullFromGitHub)
+  const syncNow = useVaultStore((s) => s.syncNow)
   const pushNote = useVaultStore((s) => s.pushNote)
-  const kanbanEnabled = useVaultStore((s) => s.isPluginEnabled('kanban'))
-  const agendaEnabled = useVaultStore((s) => s.isPluginEnabled('agenda'))
+  const pullFromGitHub = useVaultStore((s) => s.pullFromGitHub)
+  const setAutoSync = useVaultStore((s) => s.setAutoSync)
+  const closeTab = useTabsStore((s) => s.closeTab)
+  const closeAllTabs = useTabsStore((s) => s.closeAllTabs)
+  const diffPath = useIdeStore((s) => s.diffPath)
+  const setIdePanel = useIdeStore((s) => s.setPanel)
+  const openQuickOpen = useIdeStore((s) => s.openQuickOpen)
+  const startCreation = useCreationStore((s) => s.start)
+  const kanbanEnabled = useVaultStore((s) => s.isPluginEnabled('kanban')) && !IS_CODE_WORKSPACE
+  const agendaEnabled = useVaultStore((s) => s.isPluginEnabled('agenda')) && !IS_CODE_WORKSPACE
   const requestedViewMode = useUiStore((s) => s.requestedViewMode)
   const clearRequestedViewMode = useUiStore((s) => s.clearRequestedViewMode)
   const [viewMode, setViewModeState] = useState<ViewMode>(loadViewMode)
@@ -129,37 +143,94 @@ function App() {
     rafRef.current = requestAnimationFrame(() => setSyncFraction({ from: 'preview', value: fraction }))
   }
 
+  // sync inicial (pull e, se houver pendências, push); o sync em background fica em store/autoSync
   useEffect(() => {
-    if (githubConfig) pullFromGitHub()
+    if (githubConfig) syncNow()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // sync automático ao voltar para a aba (ex: usuário trocou de app/aba e voltou), para reduzir
-  // a chance de divergência acumulada sem precisar de polling constante em background
-  useEffect(() => {
+  /** Ctrl+S: no vault de notas envia tudo; em código (sem auto-sync) abre o painel de alterações */
+  function save() {
     if (!githubConfig) return
-
-    function handleVisibilityChange() {
-      if (document.visibilityState === 'visible') pullFromGitHub()
+    if (IS_CODE_WORKSPACE && !useVaultStore.getState().autoSync) {
+      showIdePanel('changes')
+      return
     }
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
-  }, [githubConfig, pullFromGitHub])
+    if (activePath) pushNote(activePath)
+  }
 
-  // captura Ctrl+S / Cmd+S em qualquer lugar da página, não só dentro do editor,
-  // para nunca deixar o browser abrir o diálogo nativo de "salvar página"
+  function showIdePanel(panel: IdePanel) {
+    setIdePanel(panel)
+    if (sidebarCollapsed) toggleSidebar(false)
+    if (window.matchMedia('(max-width: 768px)').matches) setMobileSidebarOpen(true)
+  }
+
+  const paletteCommands: PaletteCommand[] = [
+    { id: 'quick-open', label: t('ide.cmd.quickOpen'), shortcut: 'Ctrl+P', run: () => openQuickOpen('files') },
+    ...(IS_CODE_WORKSPACE
+      ? [
+          { id: 'search', label: t('ide.cmd.search'), shortcut: 'Ctrl+Shift+F', run: () => showIdePanel('search') },
+          {
+            id: 'changes',
+            label: t('ide.cmd.sourceControl'),
+            shortcut: 'Ctrl+Shift+G',
+            run: () => showIdePanel('changes'),
+          },
+          { id: 'explorer', label: t('ide.cmd.explorer'), shortcut: 'Ctrl+Shift+E', run: () => showIdePanel('explorer') },
+        ]
+      : []),
+    { id: 'new-file', label: t(IS_CODE_WORKSPACE ? 'ide.cmd.newFile' : 'ide.cmd.newNote'), run: () => startCreation('note', '') },
+    { id: 'new-folder', label: t('ide.cmd.newFolder'), run: () => startCreation('folder', '') },
+    ...(githubConfig
+      ? [
+          { id: 'pull', label: t('ide.cmd.pull'), run: () => pullFromGitHub() },
+          ...(!IS_CODE_WORKSPACE || useVaultStore.getState().autoSync
+            ? [{ id: 'sync', label: t('ide.cmd.sync'), run: () => syncNow() }]
+            : []),
+          {
+            id: 'auto-sync',
+            label: t(useVaultStore.getState().autoSync ? 'ide.cmd.autoSyncOff' : 'ide.cmd.autoSyncOn'),
+            run: () => setAutoSync(!useVaultStore.getState().autoSync),
+          },
+        ]
+      : []),
+    {
+      id: 'toggle-sidebar',
+      label: t('ide.cmd.toggleSidebar'),
+      shortcut: 'Ctrl+B',
+      run: () => toggleSidebar(!sidebarCollapsed),
+    },
+    ...(activePath
+      ? [{ id: 'close-tab', label: t('ide.cmd.closeTab'), run: () => closeTab(activePath) }]
+      : []),
+    { id: 'close-all', label: t('ide.cmd.closeAllTabs'), run: () => closeAllTabs() },
+  ]
+
+  // atalhos globais (capturados em qualquer lugar, inclusive com o foco no editor).
+  // Ctrl+S também impede o browser de abrir o diálogo nativo de "salvar página"
+  const shortcutsRef = useRef<(e: KeyboardEvent) => void>(() => {})
+  shortcutsRef.current = (e) => {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey) return
+    const key = e.key.toLowerCase()
+    if (key === 's' && !e.shiftKey) save()
+    else if (key === 'p') openQuickOpen(e.shiftKey ? 'commands' : 'files')
+    else if (key === 'b' && !e.shiftKey && IS_CODE_WORKSPACE) toggleSidebar(!sidebarCollapsed)
+    else if (IS_CODE_WORKSPACE && e.shiftKey && key === 'f') showIdePanel('search')
+    else if (IS_CODE_WORKSPACE && e.shiftKey && key === 'g') showIdePanel('changes')
+    else if (IS_CODE_WORKSPACE && e.shiftKey && key === 'e') showIdePanel('explorer')
+    else return
+    e.preventDefault()
+  }
   useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      const isSaveShortcut = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's'
-      if (!isSaveShortcut) return
-      e.preventDefault()
-      if (activePath && githubConfig) pushNote(activePath)
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [activePath, githubConfig, pushNote])
+    const handler = (e: KeyboardEvent) => shortcutsRef.current(e)
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
 
   const activeNote = notes.find((n) => n.path === activePath)
+  // arquivos que não são markdown (workspaces de código) só têm o modo de edição
+  const isMarkdownFile = activeNote ? isMarkdownPath(activeNote.path) && !activeNote.binary : true
+  const effectiveViewMode: ViewMode = isMarkdownFile ? viewMode : 'edit'
 
   // se o plugin kanban/agenda for desativado enquanto a view está aberta, fecha a view
   useEffect(() => {
@@ -224,8 +295,13 @@ function App() {
 
         <main className="editor-area">
           <TabBar />
-          {activeNote ? (
+          {diffPath ? (
+            <DiffView path={diffPath} />
+          ) : activeNote?.binary ? (
+            <FileViewer path={activeNote.path} />
+          ) : activeNote ? (
             <>
+              {isMarkdownFile && (
               <div className="view-toggle">
                 <button
                   className={viewMode === 'edit' ? 'active' : ''}
@@ -260,24 +336,25 @@ function App() {
                   <span>{t('viewToggle.preview')}</span>
                 </button>
               </div>
+              )}
 
-              <div className={`view-panels ${viewMode === 'split' ? 'split' : ''}`}>
-                {(viewMode === 'edit' || viewMode === 'split') && (
+              <div className={`view-panels ${effectiveViewMode === 'split' ? 'split' : ''}`}>
+                {(effectiveViewMode === 'edit' || effectiveViewMode === 'split') && (
                   <Editor
                     key={activeNote.path}
                     path={activeNote.path}
                     content={activeNote.content}
                     onChange={(content) => updateNoteContent(activeNote.path, content)}
                     getNoteNames={() => Array.from(new Set(notes.map((n) => n.name)))}
-                    onScroll={viewMode === 'split' ? handleEditorScroll : undefined}
+                    onScroll={effectiveViewMode === 'split' ? handleEditorScroll : undefined}
                     scrollToFraction={
-                      viewMode === 'split' && syncFraction?.from === 'preview'
+                      effectiveViewMode === 'split' && syncFraction?.from === 'preview'
                         ? syncFraction.value
                         : undefined
                     }
                   />
                 )}
-                {viewMode === 'live' && (
+                {effectiveViewMode === 'live' && (
                   <BlockEditor
                     key={activeNote.path}
                     path={activeNote.path}
@@ -285,12 +362,12 @@ function App() {
                     onChange={(content) => updateNoteContent(activeNote.path, content)}
                   />
                 )}
-                {(viewMode === 'preview' || viewMode === 'split') && (
+                {(effectiveViewMode === 'preview' || effectiveViewMode === 'split') && (
                   <Preview
                     content={activeNote.content}
-                    onScroll={viewMode === 'split' ? handlePreviewScroll : undefined}
+                    onScroll={effectiveViewMode === 'split' ? handlePreviewScroll : undefined}
                     scrollToFraction={
-                      viewMode === 'split' && syncFraction?.from === 'editor'
+                      effectiveViewMode === 'split' && syncFraction?.from === 'editor'
                         ? syncFraction.value
                         : undefined
                     }
@@ -304,7 +381,7 @@ function App() {
             </div>
           )}
         </main>
-        {activeNote && (
+        {activeNote && !IS_CODE_WORKSPACE && (
           <>
             {backlinksCollapsed ? (
               <button
@@ -346,6 +423,7 @@ function App() {
       <ConfirmDialog />
       <ConflictDialog />
       <MermaidViewer />
+      <QuickOpen commands={paletteCommands} />
     </div>
   )
 }
