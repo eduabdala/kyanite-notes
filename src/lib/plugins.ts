@@ -8,7 +8,7 @@ import { wsKey } from './workspace'
 
 export const PLUGIN_CONFIG_PATH = '.kyanite/config.json'
 
-export type PluginId = 'kanban' | 'pomodoro' | 'agenda'
+export type PluginId = 'kanban' | 'pomodoro' | 'agenda' | 'canvas'
 
 export interface PluginConfig {
   plugins: Record<PluginId, boolean>
@@ -21,6 +21,7 @@ export const DEFAULT_PLUGIN_CONFIG: PluginConfig = {
     kanban: false,
     pomodoro: false,
     agenda: false,
+    canvas: false,
   },
 }
 

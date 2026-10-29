@@ -9,6 +9,7 @@ import {
   Sparkles,
   Columns2,
   BookOpen,
+  FileDown,
 } from 'lucide-react'
 import { TopBar } from './components/TopBar'
 import { Sidebar } from './components/Sidebar'
@@ -18,6 +19,8 @@ import { Preview } from './components/Preview'
 import { BlockEditor } from './components/BlockEditor'
 import { KanbanBoard } from './components/KanbanBoard'
 import { AgendaBoard } from './components/AgendaBoard'
+import { CanvasBoard } from './components/CanvasBoard'
+import { exportNotePdf } from './lib/pdfExport'
 import { BacklinksPanel } from './components/BacklinksPanel'
 import { ResizeHandle } from './components/ResizeHandle'
 import { ConfirmDialog } from './components/ConfirmDialog'
@@ -78,6 +81,8 @@ function App() {
   const startCreation = useCreationStore((s) => s.start)
   const kanbanEnabled = useVaultStore((s) => s.isPluginEnabled('kanban')) && !IS_CODE_WORKSPACE
   const agendaEnabled = useVaultStore((s) => s.isPluginEnabled('agenda')) && !IS_CODE_WORKSPACE
+  const canvasEnabled = useVaultStore((s) => s.isPluginEnabled('canvas')) && !IS_CODE_WORKSPACE
+  const getAttachmentUrl = useVaultStore((s) => s.getAttachmentUrl)
   const requestedViewMode = useUiStore((s) => s.requestedViewMode)
   const clearRequestedViewMode = useUiStore((s) => s.clearRequestedViewMode)
   const [viewMode, setViewModeState] = useState<ViewMode>(loadViewMode)
@@ -88,6 +93,7 @@ function App() {
   }
   const [kanbanOpen, setKanbanOpen] = useState(false)
   const [agendaOpen, setAgendaOpen] = useState(false)
+  const [canvasOpen, setCanvasOpen] = useState(false)
   useAgendaAlerts()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'
@@ -241,13 +247,23 @@ function App() {
     if (!agendaEnabled && agendaOpen) setAgendaOpen(false)
   }, [agendaEnabled, agendaOpen])
 
+  useEffect(() => {
+    if (!canvasEnabled && canvasOpen) setCanvasOpen(false)
+  }, [canvasEnabled, canvasOpen])
+
+  // abrir uma nota a partir de um cartão do canvas fecha a view para mostrar o editor
+  useEffect(() => {
+    setCanvasOpen(false)
+  }, [activePath])
+
   // atalho de plugins da TopBar: abre o quadro Kanban ou a Agenda (views próprias, à parte das notas)
   useEffect(() => {
     if (!requestedViewMode) return
     if (requestedViewMode === 'board' && kanbanEnabled) setKanbanOpen(true)
     if (requestedViewMode === 'agenda' && agendaEnabled) setAgendaOpen(true)
+    if (requestedViewMode === 'canvas' && canvasEnabled) setCanvasOpen(true)
     clearRequestedViewMode()
-  }, [requestedViewMode, kanbanEnabled, agendaEnabled, clearRequestedViewMode])
+  }, [requestedViewMode, kanbanEnabled, agendaEnabled, canvasEnabled, clearRequestedViewMode])
 
   // no mobile, trocar de nota fecha o drawer da sidebar para revelar o editor
   useEffect(() => {
@@ -266,6 +282,11 @@ function App() {
         {agendaOpen && (
           <div className="kanban-overlay">
             <AgendaBoard onClose={() => setAgendaOpen(false)} />
+          </div>
+        )}
+        {canvasOpen && (
+          <div className="kanban-overlay">
+            <CanvasBoard onClose={() => setCanvasOpen(false)} />
           </div>
         )}
         {sidebarCollapsed ? (
@@ -334,6 +355,15 @@ function App() {
                 >
                   <BookOpen size={14} strokeWidth={1.75} />
                   <span>{t('viewToggle.preview')}</span>
+                </button>
+                <button
+                  onClick={() =>
+                    exportNotePdf(activeNote, new Set(notes.map((n) => n.name)), getAttachmentUrl)
+                  }
+                  title={t('pdf.exportHint')}
+                >
+                  <FileDown size={14} strokeWidth={1.75} />
+                  <span>{t('pdf.export')}</span>
                 </button>
               </div>
               )}

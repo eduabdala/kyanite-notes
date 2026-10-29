@@ -3,8 +3,9 @@ import { useTranslation } from 'react-i18next'
 import {
   Plus, X, GripVertical, FileText, Link2, ArrowLeft, Pencil, Trash2,
   Play, Flag, CalendarClock, Clock, Rows2, Rows3, Tag as TagIcon, Check,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, FileDown,
 } from 'lucide-react'
+import { exportKanbanPdf } from '../lib/pdfExport'
 import { useVaultStore } from '../store/useVaultStore'
 import { useTabsStore } from '../store/useTabsStore'
 import { useConfirmStore } from '../store/useConfirmStore'
@@ -303,6 +304,9 @@ export function KanbanBoard({ onClose }: KanbanBoardProps) {
             />
             <span>{t('kanban.autoDeleteDays')}</span>
           </label>
+          <button className="kanban-icon-btn" title={t('pdf.export')} onClick={() => exportKanbanPdf(board)}>
+            <FileDown size={14} strokeWidth={1.75} />
+          </button>
           <button className="kanban-icon-btn" title={t('kanban.renameBoard')} onClick={() => {
             setRenamingBoard(true)
             setDraftBoardName(board.name)
