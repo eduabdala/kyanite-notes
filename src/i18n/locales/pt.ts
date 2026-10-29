@@ -332,7 +332,7 @@ export const pt = {
       noProfile: 'Nenhuma conta conectada. Conecte um repositório do GitHub para sincronizar suas notas.',
       autoSync: 'Sincronização automática',
       autoSyncHint:
-        'Envia suas alterações alguns segundos depois que você para de digitar e verifica atualizações no GitHub a cada minuto. Desligada, sincronize com Ctrl+S ou o botão de sync. Vale por workspace (desligada por padrão em workspaces de código, onde os commits passam pelo controle de versão).',
+        'Desligada (padrão), suas alterações ficam salvas só no dispositivo e você sincroniza quando quiser com Ctrl+S ou o botão de sync. Ligada, envia alguns segundos depois que você para de digitar e verifica atualizações no GitHub a cada minuto (pode interromper com o aviso de conflito enquanto você digita). Vale por workspace.',
       repoUsage: 'Uso do repositório',
       repoUsageLoading: 'Calculando...',
       repoUsageDetail: '{{used}} usados de {{total}} (limite de referência)',

@@ -6,7 +6,7 @@
  * - pendingFolders: pastas vazias criadas localmente cujo marcador ainda não foi enviado */
 
 import { statusOf } from './github'
-import { IS_CODE_WORKSPACE, wsKey } from './workspace'
+import { wsKey } from './workspace'
 
 export interface PendingDelete {
   path: string
@@ -50,10 +50,11 @@ export const savePendingFolders = (list: string[]) => localStorage.setItem(FOLDE
 export const loadPendingMeta = () => loadJson<string[]>(META_PENDING_KEY, [])
 export const savePendingMeta = (list: string[]) => localStorage.setItem(META_PENDING_KEY, JSON.stringify(list))
 
-/** por workspace: ligado por padrão em notas; desligado em código (commits passam pelo painel de alterações) */
+/** por workspace: desligado por padrão. Quando ligado, envia poucos segundos após parar de
+ * digitar e puxa do remoto periodicamente; desligado, só sincroniza com Ctrl+S / botão de sync. */
 export function loadAutoSync(): boolean {
   const raw = localStorage.getItem(AUTO_SYNC_KEY)
-  return raw === null ? !IS_CODE_WORKSPACE : raw !== 'false'
+  return raw === null ? false : raw !== 'false'
 }
 export const saveAutoSync = (on: boolean) => localStorage.setItem(AUTO_SYNC_KEY, String(on))
 

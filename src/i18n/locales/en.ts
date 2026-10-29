@@ -331,7 +331,7 @@ export const en = {
       noProfile: 'No account connected. Connect a GitHub repository to sync your notes.',
       autoSync: 'Automatic sync',
       autoSyncHint:
-        'Sends your changes a few seconds after you stop typing and checks GitHub for updates every minute. When off, sync with Ctrl+S or the sync button. Set per workspace (off by default in code workspaces, where commits go through Source control).',
+        'Off (default), your changes stay saved on this device only and you sync whenever you want with Ctrl+S or the sync button. On, it sends your changes a few seconds after you stop typing and checks GitHub for updates every minute (may interrupt with the conflict prompt while you type). Set per workspace.',
       repoUsage: 'Repository usage',
       repoUsageLoading: 'Calculating...',
       repoUsageDetail: '{{used}} used of {{total}} (reference limit)',
