@@ -27,7 +27,7 @@ import './SettingsPanel.css'
 
 type SettingsSection = 'appearance' | 'language' | 'profile' | 'plugins' | 'about'
 
-const PLUGIN_IDS: PluginId[] = ['kanban', 'pomodoro', 'agenda']
+const PLUGIN_IDS: PluginId[] = ['kanban', 'pomodoro', 'agenda', 'canvas']
 
 interface SettingsPanelProps {
   onClose: () => void

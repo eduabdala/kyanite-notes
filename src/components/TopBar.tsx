@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Menu, Puzzle, LayoutGrid, Timer, RefreshCw, CalendarDays, AlertTriangle } from 'lucide-react'
+import { Menu, Puzzle, LayoutGrid, Timer, RefreshCw, CalendarDays, AlertTriangle, Waypoints } from 'lucide-react'
 import { pendingChangesCount, useVaultStore } from '../store/useVaultStore'
 import { IS_CODE_WORKSPACE, takeConnectHint } from '../lib/workspace'
 import { overdueTasks } from '../lib/agenda'
@@ -32,6 +32,7 @@ export function TopBar({ onOpenSidebar }: TopBarProps) {
   const kanbanEnabled = useVaultStore((s) => s.isPluginEnabled('kanban')) && !IS_CODE_WORKSPACE
   const pomodoroEnabled = useVaultStore((s) => s.isPluginEnabled('pomodoro')) && !IS_CODE_WORKSPACE
   const agendaEnabled = useVaultStore((s) => s.isPluginEnabled('agenda')) && !IS_CODE_WORKSPACE
+  const canvasEnabled = useVaultStore((s) => s.isPluginEnabled('canvas')) && !IS_CODE_WORKSPACE
   const agendaCollection = useVaultStore((s) => s.agendaCollection)
   const activePath = useTabsStore((s) => s.activePath)
   const requestViewMode = useUiStore((s) => s.requestViewMode)
@@ -55,11 +56,11 @@ export function TopBar({ onOpenSidebar }: TopBarProps) {
   const [pluginsOpen, setPluginsOpen] = useState(false)
   const pluginsRef = useRef<HTMLDivElement>(null)
 
-  const anyPluginEnabled = kanbanEnabled || pomodoroEnabled || agendaEnabled
+  const anyPluginEnabled = kanbanEnabled || pomodoroEnabled || agendaEnabled || canvasEnabled
   // no mobile o Pomodoro some do menu (sessão de foco contínua não combina com consulta
   // rápida); se nem Kanban nem Agenda estiverem habilitados, o botão de plugins não teria
   // nada pra mostrar no mobile
-  const anyPluginEnabledOnMobile = kanbanEnabled || agendaEnabled
+  const anyPluginEnabledOnMobile = kanbanEnabled || agendaEnabled || canvasEnabled
 
   // fecha o dropdown ao clicar fora dele
   useEffect(() => {
@@ -142,6 +143,19 @@ export function TopBar({ onOpenSidebar }: TopBarProps) {
                     <CalendarDays size={15} strokeWidth={1.75} />
                     <span>{t('plugins.agenda.name')}</span>
                     <span className="plugins-dropdown-hint">{t('topBar.pluginShortcuts.agenda')}</span>
+                  </button>
+                )}
+                {canvasEnabled && (
+                  <button
+                    className="plugins-dropdown-item"
+                    onClick={() => {
+                      setPluginsOpen(false)
+                      requestViewMode('canvas')
+                    }}
+                  >
+                    <Waypoints size={15} strokeWidth={1.75} />
+                    <span>{t('plugins.canvas.name')}</span>
+                    <span className="plugins-dropdown-hint">{t('topBar.pluginShortcuts.canvas')}</span>
                   </button>
                 )}
                 {pomodoroEnabled && (

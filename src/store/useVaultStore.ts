@@ -55,6 +55,14 @@ import {
   type AgendaCollection,
 } from '../lib/agenda'
 import {
+  CANVAS_PATH,
+  emptyCanvasCollection,
+  parseCanvasCollection,
+  serializeCanvasCollection,
+  retargetCanvasNotes,
+  type CanvasCollection,
+} from '../lib/canvas'
+import {
   classifyError,
   loadAutoSync,
   loadMetaShas,
@@ -206,6 +214,10 @@ interface VaultState {
   /** Tarefas da Agenda do vault (`.kyanite/agenda.json`), independente das notas */
   agendaCollection: AgendaCollection
   saveAgendaCollection: (collection: AgendaCollection) => Promise<void>
+
+  /** Canvases do vault (`.kyanite/canvas.json`), independentes das notas */
+  canvasCollection: CanvasCollection
+  saveCanvasCollection: (collection: CanvasCollection) => Promise<void>
 }
 
 const EMPTY_GRAPH: LinkGraph = { outgoing: new Map(), incoming: new Map() }
@@ -258,9 +270,20 @@ function saveLocalKanbanCollection(collection: KanbanCollection) {
   localStorage.setItem(KANBAN_LOCAL_KEY, serializeCollection(collection))
 }
 
+const CANVAS_LOCAL_KEY = wsKey('canvas')
+
+function loadLocalCanvasCollection(): CanvasCollection {
+  const raw = localStorage.getItem(CANVAS_LOCAL_KEY)
+  return raw ? parseCanvasCollection(raw) : emptyCanvasCollection()
+}
+
+function saveLocalCanvasCollection(collection: CanvasCollection) {
+  localStorage.setItem(CANVAS_LOCAL_KEY, serializeCanvasCollection(collection))
+}
+
 /** arquivos de dados do vault (fora das notas) sincronizados junto com o resto.
  * Em workspaces de código não são sincronizados, para não criar `.kyanite/` no repo do projeto. */
-const META_PATHS = IS_CODE_WORKSPACE ? [] : [PLUGIN_CONFIG_PATH, KANBAN_BOARD_PATH, AGENDA_PATH]
+const META_PATHS = IS_CODE_WORKSPACE ? [] : [PLUGIN_CONFIG_PATH, KANBAN_BOARD_PATH, AGENDA_PATH, CANVAS_PATH]
 /** espera após a última tecla antes do envio automático */
 const AUTO_PUSH_DELAY_MS = 4000
 /** espera após mudanças em Kanban/Agenda/config (arrastar cartões gera várias em sequência) */
@@ -280,6 +303,7 @@ const parentOf = (path: string) => (path.includes('/') ? path.slice(0, path.last
 function defaultMeta(path: string): string {
   if (path === PLUGIN_CONFIG_PATH) return serializePluginConfig(DEFAULT_PLUGIN_CONFIG)
   if (path === KANBAN_BOARD_PATH) return serializeCollection(emptyCollection())
+  if (path === CANVAS_PATH) return serializeCanvasCollection(emptyCanvasCollection())
   return serializeAgendaCollection(emptyAgendaCollection())
 }
 
@@ -332,6 +356,7 @@ export const useVaultStore = create<VaultState>((set, get) => {
     const s = get()
     if (path === PLUGIN_CONFIG_PATH) return serializePluginConfig(s.pluginConfig)
     if (path === KANBAN_BOARD_PATH) return serializeCollection(s.kanbanCollection)
+    if (path === CANVAS_PATH) return serializeCanvasCollection(s.canvasCollection)
     return serializeAgendaCollection(s.agendaCollection)
   }
 
@@ -345,6 +370,11 @@ export const useVaultStore = create<VaultState>((set, get) => {
       const kanbanCollection = parseCollection(content)
       saveLocalKanbanCollection(kanbanCollection)
       return { kanbanCollection }
+    }
+    if (path === CANVAS_PATH) {
+      const canvasCollection = parseCanvasCollection(content)
+      saveLocalCanvasCollection(canvasCollection)
+      return { canvasCollection }
     }
     const agendaCollection = parseAgendaCollection(content)
     saveLocalAgendaCollection(agendaCollection)
@@ -389,11 +419,14 @@ export const useVaultStore = create<VaultState>((set, get) => {
     setPending({ pendingDeletes: deletes })
 
     let kanban = get().kanbanCollection
+    let canvas = get().canvasCollection
     moves.forEach((to, from) => {
       useTabsStore.getState().renameTab(from, to)
       kanban = retargetNoteLinks(kanban, from, to)
+      canvas = retargetCanvasNotes(canvas, from, to)
     })
     if (kanban !== get().kanbanCollection) get().saveKanbanCollection(kanban)
+    if (canvas !== get().canvasCollection) get().saveCanvasCollection(canvas)
   }
 
   /** Pull incremental: compara a árvore remota com os shas locais e baixa só o que mudou */
@@ -1145,6 +1178,7 @@ export const useVaultStore = create<VaultState>((set, get) => {
     pluginConfig: loadLocalPluginConfig(),
     kanbanCollection: loadLocalKanbanCollection(),
     agendaCollection: loadLocalAgendaCollection(),
+    canvasCollection: loadLocalCanvasCollection(),
 
     isPluginEnabled: (id) => {
       return get().pluginConfig.plugins[id] ?? false
@@ -1175,6 +1209,12 @@ export const useVaultStore = create<VaultState>((set, get) => {
       saveLocalAgendaCollection(collection)
       set({ agendaCollection: collection })
       markMetaPending(AGENDA_PATH)
+    },
+
+    saveCanvasCollection: async (collection) => {
+      saveLocalCanvasCollection(collection)
+      set({ canvasCollection: collection })
+      markMetaPending(CANVAS_PATH)
     },
   }
 })
